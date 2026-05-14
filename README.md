@@ -50,6 +50,10 @@ async fn main() -> Result<(), http_quik::Error> {
 }
 ```
 
+## Documentation
+
+Full API documentation and usage guides are available on [Docs.rs](https://docs.rs/http-quik).
+
 ## License
 
 This project is licensed under the [Apache License, Version 2.0](LICENSE.md).
