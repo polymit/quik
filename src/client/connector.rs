@@ -60,6 +60,20 @@ pub async fn connect(
     // Stage 3: Per-connection FFI for advanced Chrome features.
     let ssl_ptr = config.as_ptr();
 
+    // Helper to dynamically build the ALPS payload from H2 settings.
+    fn build_alps_payload(settings: &crate::profile::SettingsFrame) -> [u8; 24] {
+        let mut payload = [0u8; 24];
+        payload[0..2].copy_from_slice(&1u16.to_be_bytes());
+        payload[2..6].copy_from_slice(&settings.header_table_size.to_be_bytes());
+        payload[6..8].copy_from_slice(&2u16.to_be_bytes());
+        payload[8..12].copy_from_slice(&(settings.enable_push as u32).to_be_bytes());
+        payload[12..14].copy_from_slice(&4u16.to_be_bytes());
+        payload[14..18].copy_from_slice(&settings.initial_window_size.to_be_bytes());
+        payload[18..20].copy_from_slice(&6u16.to_be_bytes());
+        payload[20..24].copy_from_slice(&settings.max_header_list_size.to_be_bytes());
+        payload
+    }
+
     // SAFETY: The `ssl_ptr` is valid for the duration of the configuration phase.
     // We pass valid pointers for the ALPN protocol "h2" and the static ALPS buffer.
     // These calls are required because high-level Rust wrappers often do not yet
@@ -69,11 +83,7 @@ pub async fn connect(
             boring_sys::SSL_set_enable_ech_grease(ssl_ptr, 1);
         }
         if profile.tls.alps_enabled {
-            // Chrome 134 ALPS H2 settings payload:
-            // ID 1: 65536, ID 2: 0, ID 4: 6291456, ID 6: 262144
-            let alps_data: [u8; 24] = [
-                0, 1, 0, 1, 0, 0, 0, 2, 0, 0, 0, 0, 0, 4, 0, 96, 0, 0, 0, 6, 0, 4, 0, 0,
-            ];
+            let alps_data = build_alps_payload(&profile.h2.settings);
 
             boring_sys::SSL_add_application_settings(
                 ssl_ptr,

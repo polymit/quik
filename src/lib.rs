@@ -46,6 +46,9 @@
 //! ## Safety & FFI
 //! This crate uses `boring` and `boring-sys` for low-level TLS control. All unsafe blocks are
 //! localized to the `tls` and `client` modules and are documented with safety rationales.
+//!
+//! ## Changelog
+//! For recent updates and release notes, please see the [CHANGELOG.md](https://github.com/polymit/quik/blob/main/CHANGELOG.md) on GitHub.
 
 pub mod client;
 pub mod error;

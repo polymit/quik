@@ -4,6 +4,8 @@
 [![Docs.rs](https://docs.rs/http-quik/badge.svg)](https://docs.rs/http-quik)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.md)
 
+[See the CHANGELOG for recent updates and release notes.](CHANGELOG.md)
+
 `http-quik` is a specialized HTTP transport library built in Rust, designed for absolute network identity parity with Google Chrome. It provides low-level control over the entire protocol stack—from TLS handshakes to HTTP/2 frame signaling—to ensure that every network interaction is indistinguishable from a real browser.
 
 This crate is a core component of the [Phantom Engine](https://github.com/polymit/phantom-engine) ecosystem.

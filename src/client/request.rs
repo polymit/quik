@@ -74,4 +74,10 @@ pub fn inject_chrome_headers(
             value.set_sensitive(true);
         }
     }
+
+    // TODO(agent): Intelligent `:path` indexing.
+    // If the request path exceeds a certain entropy/length threshold (e.g., > 40 chars
+    // for unique REST API IDs), we should flag the `:path` pseudo-header as sensitive
+    // to prevent dynamic table bloat, matching Chrome's behavior. This requires a patch
+    // in the upstream `0x676e67/http2` fork to support `no_index` on pseudo-headers.
 }

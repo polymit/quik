@@ -153,6 +153,14 @@ impl Client {
                 }
             }
 
+            // Inject Origin header for mutation methods (POST, PUT, PATCH)
+            // Chrome sends this even for same-origin requests to prevent CSRF.
+            if current_method == "POST" || current_method == "PUT" || current_method == "PATCH" {
+                if let Ok(val) = http::header::HeaderValue::from_str(&parsed_url.origin().ascii_serialization()) {
+                    request.headers_mut().insert("origin", val);
+                }
+            }
+
             // Injects Chrome-identical headers, handling dynamic Sec-Fetch and Priority states.
             let is_initial = hop == 0;
             inject_chrome_headers(
