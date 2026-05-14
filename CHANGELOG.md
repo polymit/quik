@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] - 2026-05-14
+
+### Added
+- **Cross-Platform Chrome 134 Profiles:** Added `chrome_134_windows_x64()` and `chrome_134_linux_x64()` profile constructors alongside the existing macOS profile. Each constructor emits the correct OS-specific User-Agent, `sec-ch-ua-platform`, `sec-ch-ua-platform-version`, and ALPS payload.
+- **OS Auto-Detection (`profile_auto`):** New compile-time auto-detection via `cfg!(target_os)` selects the Chrome 134 profile matching the host kernel. `Client::new()` and `ClientBuilder::build()` now default to `profile_auto()` instead of hardcoding macOS.
+- **`sec-ch-ua-platform-version` Header:** Added the `sec_ch_ua_platform_version` field to `HeaderProfile` and injected it into every outbound request. WAFs cross-check this value against the declared platform to detect spoofing (Windows 11 → `"13.0.0"`, macOS → `"15.0.0"`, Linux → `"0.0.0"`).
+- **Platform-Specific ALPS Payload:** Added `alps_extra_settings` to `TlsProfile`. Windows and Linux Chrome append setting `0x7A9A` to the ALPS handshake data, producing a 30-byte payload versus macOS's 24 bytes. The ALPS builder in `connector.rs` now dynamically serializes these extra entries.
+
+### Changed
+- Refactored `chrome_134.rs` internals into shared `base_tls()` and `base_h2()` helpers to eliminate duplication across the three platform constructors.
+- Updated crate-level and module-level documentation across `lib.rs`, `profile/mod.rs`, `profile/chrome_134.rs`, `client/connector.rs`, `client/request.rs`, and `client/pool.rs`.
+
 ## [0.1.1] - 2026-05-14
 
 ### Added

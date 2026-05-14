@@ -1,9 +1,12 @@
-//! Data-only definitions for Chrome transport identities.
+//! Data-only definitions for Chrome transport identity profiles.
 //!
-//! This module defines the schemas used to configure the TLS and HTTP/2
-//! layers. No protocol logic resides here; instead, these structures act as
-//! the configuration contract that the `tls` and `http2` modules translate
-//! into specific BoringSSL and H2 builder calls.
+//! This module defines the configuration schemas used by the `tls` and `http2`
+//! modules to construct browser-identical network handshakes. No protocol
+//! logic resides here; these structures serve as the single source of truth
+//! for all fingerprint-sensitive parameters.
+//!
+//! Each [`ChromeProfile`] encodes a complete, multi-layer network identity
+//! spanning TLS (Layer 4), HTTP/2 (Layer 5), and HTTP metadata (Layer 7).
 
 use boring::ssl::SslVersion;
 
@@ -12,19 +15,21 @@ pub mod chrome_134;
 /// Alias for BoringSSL's internal version type.
 pub type TlsVersion = SslVersion;
 
-/// Supported execution environments for profile targeting.
+/// Target operating system and CPU architecture.
 ///
-/// Hardware and OS markers are embedded in several layers, including the
-/// TLS ClientHello (via GREASE and curves) and the HTTP User-Agent.
+/// The platform determines OS-specific protocol parameters (ALPS payload
+/// length, User-Agent string, Client Hint values) and is used by
+/// [`chrome_134::profile_auto`] to align the network persona with the
+/// host kernel's TCP/IP characteristics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {
-    /// Apple Silicon (M1/M2/M3) - Targeted with specific X25519MLKEM768 support.
+    /// macOS on Apple Silicon (M1/M2/M3/M4).
     MacOsArm,
-    /// Intel-based macOS.
+    /// macOS on Intel x86-64.
     MacOsX86,
-    /// 64-bit Windows.
+    /// Windows 10/11 on x86-64.
     WindowsX64,
-    /// 64-bit Linux (Generic).
+    /// Linux (Ubuntu, Debian, etc.) on x86-64.
     LinuxX64,
 }
 
@@ -56,6 +61,11 @@ pub struct TlsProfile {
     pub alps_enabled: bool,
     /// Whether to use the draft-01 or final ALPS codepoint.
     pub alps_use_new_codepoint: bool,
+    /// Additional H2 SETTINGS IDs to append in the ALPS payload.
+    ///
+    /// Windows and Linux Chrome include an extra setting (ID 31386) in the
+    /// ALPS handshake data that macOS omits. Each tuple is `(id, value)`.
+    pub alps_extra_settings: &'static [(u16, u32)],
     /// Whether to support RFC 8879 certificate compression (Brotli).
     pub compress_certificate: bool,
     /// Whether to enable stateless session tickets for fast reconnection.
@@ -126,32 +136,45 @@ pub enum PseudoOrder {
     Path,
 }
 
-/// Chrome-specific HTTP header values and behaviors.
+/// Chrome-specific HTTP header values and Client Hint metadata.
+///
+/// These values are injected into every outbound request and must match
+/// the declared platform. WAFs cross-check `sec-ch-ua-platform` against
+/// the TLS handshake and TCP stack to detect spoofed identities.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HeaderProfile {
-    /// Full User-Agent string.
+    /// Full `User-Agent` header value.
     pub user_agent: String,
-    /// `sec-ch-ua` Client Hint string.
+    /// `sec-ch-ua` Client Hint brand list.
     pub sec_ch_ua: String,
-    /// `sec-ch-ua-platform` Client Hint string.
+    /// `sec-ch-ua-platform` Client Hint (e.g., `"macOS"`, `"Windows"`, `"Linux"`).
     pub sec_ch_ua_platform: String,
-    /// Whether to include the `priority` header in the request.
+    /// `sec-ch-ua-platform-version` Client Hint.
+    ///
+    /// Must match the host OS: Windows 11 reports `"13.0.0"`,
+    /// macOS Sequoia reports `"15.0.0"`, Linux reports `"0.0.0"`.
+    pub sec_ch_ua_platform_version: String,
+    /// Whether to include the RFC 9218 `priority` header (e.g., `u=0, i`).
     pub include_priority_header: bool,
-    /// Whether to include `zstd` in `accept-encoding`.
+    /// Whether to advertise `zstd` in the `accept-encoding` header.
     pub zstd_encoding: bool,
 }
 
 /// A complete, multi-layer identity profile for a Chrome instance.
+///
+/// Combines TLS, HTTP/2, and HTTP metadata into a single configuration
+/// that, when applied, makes the transport layer indistinguishable from
+/// the specified Chrome version and platform.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ChromeProfile {
-    /// Major Chrome version (e.g., 134).
+    /// Major Chrome version (e.g., `134`).
     pub version: u32,
     /// Target operating system and architecture.
     pub platform: Platform,
-    /// Layer 4: TLS configuration.
+    /// TLS handshake configuration (JA3/JA4 fingerprint source).
     pub tls: TlsProfile,
-    /// Layer 5: HTTP/2 configuration.
+    /// HTTP/2 handshake configuration (Akamai fingerprint source).
     pub h2: Http2Profile,
-    /// Layer 6: HTTP header configuration.
+    /// HTTP-level metadata and Client Hints.
     pub headers: HeaderProfile,
 }

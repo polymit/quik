@@ -8,23 +8,25 @@ use crate::client::proxy::Proxy;
 use crate::client::request::inject_chrome_headers;
 use crate::client::response::Response;
 use crate::error::{Error, Result};
-use crate::profile::{ChromeProfile, Platform};
+use crate::profile::ChromeProfile;
 
 use bytes::Bytes;
 use cookie_store::CookieStore;
 use std::sync::RwLock;
 
-/// A stateful, pooling HTTP client that enforces Chrome 134 identity.
+/// A stateful, pooling HTTP client that enforces Chrome transport identity.
 ///
-/// The `Client` is the primary entry point for the `quik` library. It manages:
+/// The `Client` is the primary entry point for the `http-quik` library. It manages:
 /// 1. **Connection Pooling**: Reuses established HTTP/2 sessions to maintain persistent fingerprints.
 /// 2. **Cookie Persistence**: A synchronized cookie jar shared across all requests.
 /// 3. **Stealth Redirects**: Automatically follows redirects while mutating headers and methods
 ///    to match Chromium's behavioral markers.
+/// 4. **OS Auto-Detection**: Defaults to a Chrome profile matched to the host OS,
+///    ensuring consistency between the TLS/H2 persona and the kernel's TCP stack.
 ///
 /// # Example
 /// ```rust
-/// use quik::Client;
+/// use http_quik::Client;
 ///
 /// let client = Client::new();
 /// ```
@@ -50,14 +52,15 @@ impl Default for Client {
 }
 
 impl Client {
-    /// Creates a new `Client` with a default Chrome 134 macOS profile.
+    /// Creates a new `Client` with a Chrome 134 profile auto-matched to the host OS.
     ///
-    /// This is a convenience method that builds a client with Apple Silicon
-    /// hardware signatures. For custom profiles or proxies, use [`Client::builder`].
+    /// The profile is selected at compile time to ensure consistency between
+    /// the TLS/H2 persona and the host kernel's TCP stack.
+    /// For custom profiles or proxies, use [`Client::builder`].
     pub fn new() -> Self {
         Self::builder().build().unwrap_or_else(|_| Client {
             pool: Arc::new(Mutex::new(HashMap::new())),
-            profile: crate::profile::chrome_134::profile(Platform::MacOsArm),
+            profile: crate::profile::chrome_134::profile_auto(),
             proxy: None,
             cookie_store: Arc::new(RwLock::new(CookieStore::default())),
         })
@@ -303,7 +306,7 @@ impl ClientBuilder {
     pub fn build(self) -> Result<Client> {
         let profile = self
             .profile
-            .unwrap_or_else(|| crate::profile::chrome_134::profile(Platform::MacOsArm));
+            .unwrap_or_else(crate::profile::chrome_134::profile_auto);
 
         Ok(Client {
             pool: Arc::new(Mutex::new(HashMap::new())),

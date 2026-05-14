@@ -1,18 +1,21 @@
 use crate::profile::ChromeProfile;
 use http::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, USER_AGENT};
 
-/// Injects Chrome 134-identical headers into the provided request map.
+/// Injects Chrome-identical headers into the provided request map.
 ///
-/// This function enforces the exact header sequence, Client Hint values,
-/// and security metadata required to pass network-layer identity checks.
+/// Populates navigation metadata, Client Hints, compression preferences,
+/// and HPACK sensitivity flags in the exact order and format emitted by
+/// the target Chrome version.
 ///
-/// ## Navigation Metadata
-/// - **Sec-Fetch-***: Injects mode, site, user, and dest headers based on
-///   the current navigation state.
-/// - **Client Hints**: Populates `sec-ch-ua` brands and platform strings.
-/// - **HPACK Sensitivity**: Marks `cookie` and `authorization` headers as
-///   sensitive to prevent them from being indexed in the HPACK dynamic table,
-///   matching Chromium's security behavior.
+/// ## Cross-Platform Consistency
+/// The `sec-ch-ua-platform` and `sec-ch-ua-platform-version` values are
+/// sourced from the active [`ChromeProfile`], ensuring they match the
+/// OS persona declared during the TLS handshake.
+///
+/// ## HPACK Sensitivity
+/// `cookie` and `authorization` headers are marked as sensitive to force
+/// the HPACK encoder into "Literal Never Indexed" mode, preventing
+/// side-channel leaks (CRIME mitigation).
 pub fn inject_chrome_headers(
     headers: &mut HeaderMap,
     profile: &ChromeProfile,
@@ -27,6 +30,9 @@ pub fn inject_chrome_headers(
     headers.insert("sec-ch-ua-mobile", HeaderValue::from_static("?0"));
     if let Ok(val) = HeaderValue::from_str(&profile.headers.sec_ch_ua_platform) {
         headers.insert("sec-ch-ua-platform", val);
+    }
+    if let Ok(val) = HeaderValue::from_str(&profile.headers.sec_ch_ua_platform_version) {
+        headers.insert("sec-ch-ua-platform-version", val);
     }
 
     // 2. Navigation / Fetch metadata
