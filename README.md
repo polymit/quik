@@ -4,7 +4,7 @@
 [![Docs.rs](https://docs.rs/http-quik/badge.svg)](https://docs.rs/http-quik)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE.md)
 
-[See the CHANGELOG for recent updates and release notes.](CHANGELOG.md)
+[See the CHANGELOG for recent updates and release notes.](https://github.com/polymit/quik/blob/main/CHANGELOG.md)
 
 `http-quik` is a specialized HTTP transport library built in Rust, designed for absolute network identity parity with Google Chrome. It provides low-level control over the entire protocol stack—from TLS handshakes to HTTP/2 frame signaling—to ensure that every network interaction is indistinguishable from a real browser.
 
