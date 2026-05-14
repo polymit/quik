@@ -31,7 +31,7 @@ pub enum Platform {
 /// Configuration for the TLS 1.2/1.3 handshake layer.
 ///
 /// This structure defines the Layer 4 identity of the client. Small changes
-/// here (such as the order of cipher suites) will change the JA3/JA4 
+/// here (such as the order of cipher suites) will change the JA3/JA4
 /// fingerprint and can lead to immediate detection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TlsProfile {

@@ -1,13 +1,13 @@
-use quik::{Client, Platform};
+use http_quik::{Client, Platform};
 
 #[tokio::main]
-async fn main() -> quik::Result<()> {
+async fn main() -> http_quik::Result<()> {
     tracing_subscriber::fmt::init();
 
     // 1. Setup the High-Level Client (The Pool)
     // This replaces wreq::Client::new()
     let client = Client::builder()
-        .profile(quik::profile::chrome_134::profile(Platform::MacOsArm))
+        .profile(http_quik::profile::chrome_134::profile(Platform::MacOsArm))
         .build()?;
 
     let url = "https://tls.peet.ws/api/all";

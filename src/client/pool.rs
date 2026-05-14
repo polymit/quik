@@ -25,7 +25,7 @@ use std::sync::RwLock;
 /// # Example
 /// ```rust
 /// use quik::Client;
-/// 
+///
 /// let client = Client::new();
 /// ```
 #[derive(Clone)]
@@ -82,13 +82,13 @@ impl Client {
     ///
     /// This method implements a high-fidelity Chromium redirect state machine:
     ///
-    /// 1. **Sec-Fetch-Site Evolution**: Dynamically calculates origin relationships 
+    /// 1. **Sec-Fetch-Site Evolution**: Dynamically calculates origin relationships
     ///    (same-origin, same-site, cross-site) across hops to maintain stealth.
-    /// 2. **Header Mutation**: Automatically strips `sec-fetch-user` and 
+    /// 2. **Header Mutation**: Automatically strips `sec-fetch-user` and
     ///    `upgrade-insecure-requests` after the first hop, exactly like Chrome.
-    /// 3. **Method Rotation**: Rotates POST requests to GET for 301, 302, and 303 
+    /// 3. **Method Rotation**: Rotates POST requests to GET for 301, 302, and 303
     ///    status codes to prevent out-of-spec behavioral markers.
-    /// 4. **H2 Multiplexing**: Reuses existing connections from the pool to avoid 
+    /// 4. **H2 Multiplexing**: Reuses existing connections from the pool to avoid
     ///    redundant TLS handshakes that could trigger anti-bot alerts.
     async fn execute_with_redirects(
         &self,

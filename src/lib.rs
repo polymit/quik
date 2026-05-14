@@ -5,7 +5,7 @@
 //! handshakes to HTTP/2 frame signaling—to ensure that every network interaction is
 //! indistinguishable from a real browser.
 //!
-//! This crate is a core component of the [Phantom Engine](https://github.com/polymit/phantom-engine) 
+//! This crate is a core component of the [Phantom Engine](https://github.com/polymit/phantom-engine)
 //! ecosystem and provides the high-stealth transport layer required for modern agentic navigation.
 //!
 //! ## Why http-quik?

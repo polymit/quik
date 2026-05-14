@@ -14,8 +14,8 @@ use crate::tls::build_connector;
 /// Represents an established HTTP/2 connection with a fixed Chrome identity.
 ///
 /// This structure holds the active H2 request handle and the profile used
-/// to establish the connection. Reusing this connection ensures that all 
-/// subsequent requests adhere to the same behavioral constraints (e.g., 
+/// to establish the connection. Reusing this connection ensures that all
+/// subsequent requests adhere to the same behavioral constraints (e.g.,
 /// same SETTINGS, same window increments).
 pub struct QuikConnection {
     /// The handle used to initiate new H2 streams.
@@ -62,7 +62,7 @@ pub async fn connect(
 
     // SAFETY: The `ssl_ptr` is valid for the duration of the configuration phase.
     // We pass valid pointers for the ALPN protocol "h2" and the static ALPS buffer.
-    // These calls are required because high-level Rust wrappers often do not yet 
+    // These calls are required because high-level Rust wrappers often do not yet
     // expose the latest Chromium-specific BoringSSL features.
     unsafe {
         if profile.tls.enable_ech_grease {

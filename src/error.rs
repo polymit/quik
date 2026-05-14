@@ -30,7 +30,7 @@ pub enum Error {
     /// Failure during the HTTP/2 handshake or frame signaling.
     ///
     /// This error is returned when the remote peer violates the H2 protocol or
-    /// when the internal state machine fails to replicate the required Chrome 
+    /// when the internal state machine fails to replicate the required Chrome
     /// behavior (e.g., SETTINGS frame ordering).
     #[error("http/2 handshake failed: {0}")]
     Http2(#[from] http2::Error),
