@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-05-14
+
+### Fixed
+- **Hotfix:** Reverted the PQ curve string `X25519MLKEM768` back to `X25519Kyber768Draft00`. The v0.1.3 release introduced the new standardized string, but the `boring` crate v4 bindings in use do not yet parse the new string, causing a `TlsBuild` panic on initialization. The underlying network protocol identity (ID `4588`) remains identical to Chrome 134.
+
 ## [0.1.3] - 2026-05-14
 
 ### Fixed
