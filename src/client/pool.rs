@@ -112,7 +112,13 @@ impl Client {
             let authority = parsed_url
                 .host_str()
                 .ok_or_else(|| Error::InvalidUrl("missing host".to_string()))?;
-            let port = parsed_url.port().unwrap_or(443);
+            let port = parsed_url.port().unwrap_or_else(|| {
+                if parsed_url.scheme() == "http" {
+                    80
+                } else {
+                    443
+                }
+            });
 
             // Build a unique pool key considering the proxy and target origin.
             let proxy_prefix = self

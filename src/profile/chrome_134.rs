@@ -170,7 +170,7 @@ pub fn chrome_134_macos_arm() -> ChromeProfile {
         h2: base_h2(),
         headers: HeaderProfile {
             user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
-                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
             sec_ch_ua: SEC_CH_UA.to_owned(),
             sec_ch_ua_platform: "\"macOS\"".to_owned(),
@@ -193,7 +193,7 @@ pub fn chrome_134_windows_x64() -> ChromeProfile {
         h2: base_h2(),
         headers: HeaderProfile {
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
-                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
             sec_ch_ua: SEC_CH_UA.to_owned(),
             sec_ch_ua_platform: "\"Windows\"".to_owned(),
@@ -217,7 +217,7 @@ pub fn chrome_134_linux_x64() -> ChromeProfile {
         h2: base_h2(),
         headers: HeaderProfile {
             user_agent: "Mozilla/5.0 (X11; Linux x86_64) \
-                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+                AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
             sec_ch_ua: SEC_CH_UA.to_owned(),
             sec_ch_ua_platform: "\"Linux\"".to_owned(),

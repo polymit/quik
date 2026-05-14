@@ -70,7 +70,7 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
             curves_str.push(':');
         }
         match group {
-            4588 => curves_str.push_str("X25519Kyber768Draft00"),
+            4588 => curves_str.push_str("X25519MLKEM768"),
             29 => curves_str.push_str("X25519"),
             23 => curves_str.push_str("P-256"),
             24 => curves_str.push_str("P-384"),

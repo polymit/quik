@@ -102,13 +102,18 @@ pub async fn connect(
             let alps_data =
                 build_alps_payload(&profile.h2.settings, profile.tls.alps_extra_settings);
 
-            boring_sys::SSL_add_application_settings(
+            let alps_res = boring_sys::SSL_add_application_settings(
                 ssl_ptr,
                 b"h2".as_ptr(),
                 2,
                 alps_data.as_ptr(),
                 alps_data.len(),
             );
+            if alps_res != 1 {
+                return Err(crate::error::Error::Connect(std::io::Error::other(
+                    "failed to inject ALPS settings",
+                )));
+            }
         }
     }
 

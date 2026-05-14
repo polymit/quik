@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] - 2026-05-14
+
+### Fixed
+- **Post-Quantum Group Identity:** Chrome 134 Stable relies on the finalized ML-KEM protocol for its post-quantum hybrid group (Group ID `0x11EC` / `4588`). Previously, this ID was mapped to an outdated draft name (`X25519Kyber768Draft00`). The mapping has been updated to the standardized BoringSSL name (`X25519MLKEM768`), ensuring the ClientHello advertises the exact PQ footprint expected by WAFs.
+- **ALPS Injection Stability:** The raw BoringSSL FFI call used to inject Application-Layer Protocol Settings (ALPS) was previously ignoring its return value. `SSL_add_application_settings` is now explicitly checked. If ALPS injection fails (due to memory constraints or invalid state), the connection will safely abort with an `Error::Connect` rather than silently emitting a non-Chrome-compliant handshake.
+- **HTTP Port Routing:** The automated redirect state machine and connection pooler previously defaulted to port `443` for all target authorities. The connection pool now inspects the URL scheme, correctly defaulting to port `80` for standard `http://` targets while maintaining `443` for `https://`.
+- **User-Agent Patch Version Fidelity:** The OS-specific Chrome 134 profiles previously used a generic `.0.0.0` patch version in the `User-Agent` string. These have been updated to carry the exact Chrome 134 Stable patch version (`134.0.6998.35`), reducing detectability against heuristic analyzers that check for active release channel correlations.
+
 ## [0.1.2] - 2026-05-14
 
 ### Added
