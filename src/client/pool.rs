@@ -287,9 +287,20 @@ pub struct ClientBuilder {
     profile: Option<ChromeProfile>,
     proxy: Option<Proxy>,
     cookie_store: Option<Arc<RwLock<CookieStore>>>,
+    danger_accept_invalid_certs: bool,
 }
 
 impl ClientBuilder {
+    /// Disables certificate verification.
+    ///
+    /// # Warning
+    /// Using this makes the client vulnerable to Man-in-the-Middle (MitM) attacks.
+    /// Only use this for testing or local proxy interception.
+    pub fn danger_accept_invalid_certs(mut self, accept: bool) -> Self {
+        self.danger_accept_invalid_certs = accept;
+        self
+    }
+
     /// Sets the Chrome identity profile.
     pub fn profile(mut self, profile: ChromeProfile) -> Self {
         self.profile = Some(profile);
@@ -310,9 +321,13 @@ impl ClientBuilder {
 
     /// Finalizes the configuration and constructs a `Client`.
     pub fn build(self) -> Result<Client> {
-        let profile = self
+        let mut profile = self
             .profile
             .unwrap_or_else(crate::profile::chrome_134::profile_auto);
+
+        if self.danger_accept_invalid_certs {
+            profile.tls.verify_peer = false;
+        }
 
         Ok(Client {
             pool: Arc::new(Mutex::new(HashMap::new())),

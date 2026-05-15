@@ -124,6 +124,7 @@ fn base_tls(alps_extra: &'static [(u16, u32)]) -> TlsProfile {
         session_ticket_enabled: true,
         alpn_protocols: ALPN_PROTOCOLS,
         sigalgs: SIGALGS,
+        verify_peer: true,
     }
 }
 

@@ -11,6 +11,7 @@ async fn test_hpack_sensitive_headers_transmit_successfully(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = Client::builder()
         .profile(http_quik::profile::chrome_134::profile(Platform::MacOsArm))
+        .danger_accept_invalid_certs(true)
         .build()?;
 
     let target_url_str = "https://tls.peet.ws/api/all";

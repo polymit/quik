@@ -1,5 +1,6 @@
 use boring::ssl::{
     CertificateCompressionAlgorithm, CertificateCompressor, SslConnector, SslMethod,
+    SslVerifyMode,
 };
 use std::io::{Read, Write};
 
@@ -112,6 +113,10 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
     // Certificate compression
     if profile.compress_certificate {
         builder.add_certificate_compression_algorithm(BrotliCompressor)?;
+    }
+
+    if !profile.verify_peer {
+        builder.set_verify(SslVerifyMode::NONE);
     }
 
     Ok(builder.build())

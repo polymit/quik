@@ -74,6 +74,11 @@ pub struct TlsProfile {
     pub alpn_protocols: &'static [&'static [u8]],
     /// Ordered list of signature algorithm IDs (used for JA4_r).
     pub sigalgs: &'static [u16],
+    /// Whether to verify the server's certificate chain.
+    ///
+    /// Real browsers always verify certificates. Disable only for testing or
+    /// local proxy interception.
+    pub verify_peer: bool,
 }
 
 /// Initial HTTP/2 SETTINGS frame parameters.
