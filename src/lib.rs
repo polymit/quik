@@ -42,9 +42,10 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), http_quik::Error> {
 //!     // Auto-detects host OS and uses the matching Chrome 134 profile.
-//!     let client = Client::builder()
-//! #       .danger_accept_invalid_certs(true)
-//!         .build()?;
+//! #   let client = Client::builder().danger_accept_invalid_certs(true).build()?;
+//! #   if false {
+//!     let client = Client::new();
+//! #   }
 //!
 //!     let response = client.get("https://example.com").await?;
 //!     println!("Status: {}", response.status());
@@ -52,6 +53,12 @@
 //!     Ok(())
 //! }
 //! ```
+//!
+//! > [!NOTE]
+//! > For local development, testing, or proxying (e.g., mitmproxy), you can 
+//! > use [`Client::builder()`] with `.danger_accept_invalid_certs(true)` to
+//! > bypass TLS verification.
+//!
 //!
 //! ## Safety & FFI
 //!

@@ -64,6 +64,10 @@ let client = Client::builder()
     .build()?;
 ```
 
+> [!NOTE]
+> `http-quik` is **secure by default** and performs full TLS certificate verification. For local development, testing, or proxy interception (e.g., mitmproxy), use `.danger_accept_invalid_certs(true)` on the `ClientBuilder`.
+
+
 ## Documentation
 
 Full API documentation and usage guides are available on [Docs.rs](https://docs.rs/http-quik).
