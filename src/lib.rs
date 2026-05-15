@@ -42,13 +42,9 @@
 //! #[tokio::main]
 //! async fn main() -> Result<(), http_quik::Error> {
 //!     // Auto-detects host OS and uses the matching Chrome 134 profile.
-//!     let client = Client::new();
-//!
-//!     // Or target a specific platform explicitly:
-//!     // use http_quik::{Platform, profile::chrome_134};
-//!     // let client = Client::builder()
-//!     //     .profile(chrome_134::profile(Platform::LinuxX64))
-//!     //     .build()?;
+//!     let client = Client::builder()
+//! #       .danger_accept_invalid_certs(true)
+//!         .build()?;
 //!
 //!     let response = client.get("https://example.com").await?;
 //!     println!("Status: {}", response.status());
