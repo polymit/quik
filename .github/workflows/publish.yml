@@ -1,4 +1,3 @@
----
 name: Publish to Crates.io
 
 on:
@@ -6,9 +5,16 @@ on:
     types: [published]
 
 jobs:
+  # Call the external test workflow. 
+  # This job must pass on all platforms defined in test.yml.
+  run-tests:
+    uses: ./.github/workflows/test.yml
+
+  # The actual publish job
   publish:
     name: Publish Crate
-    runs-on: ubuntu-24.04
+    needs: [run-tests] # <--- Depends on the reusable workflow above
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -16,13 +22,6 @@ jobs:
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo registry
-        uses: actions/cache@v4
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-publish-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-publish-
 
       - name: Publish to Crates.io
         env:

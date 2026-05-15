@@ -1,0 +1,57 @@
+name: CI - Strict Quality Gate
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_call: # Allows this workflow to be called by others (e.g., publish.yml)
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "-D warnings" # Fail on all warnings in all steps
+
+jobs:
+  test:
+    name: Quality Gate - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Cargo Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run Cargo Check
+        run: cargo check --all-targets --all-features
+
+      - name: Run Clippy (Strict)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Test Suite
+        run: cargo test --all-features -- --nocapture
+
+      - name: Dry-run Publish
+        run: cargo publish --dry-run

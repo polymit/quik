@@ -1,6 +1,5 @@
 use boring::ssl::{
-    CertificateCompressionAlgorithm, CertificateCompressor, SslConnector, SslMethod,
-    SslVerifyMode,
+    CertificateCompressionAlgorithm, CertificateCompressor, SslConnector, SslMethod, SslVerifyMode,
 };
 use std::io::{Read, Write};
 
