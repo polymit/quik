@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2026-05-15
+
+### Added
+- **Configurable TLS Verification**: Introduced `verify_peer` to `TlsProfile` and `.danger_accept_invalid_certs(bool)` to `ClientBuilder`. This enables developer-friendly bypasses for local debugging and proxying (mitmproxy) while maintaining secure-by-default behavior.
+- **Strict Quality Gate**: Implemented a modular, multi-platform CI workflow (`test.yml`) that enforces strict quality checks across Ubuntu, Windows, and macOS.
+
+### Fixed
+- **Windows OS Stability**: Resolved persistent `CERTIFICATE_VERIFY_FAILED` errors on Windows environments by updating the integration and doc-test suites to utilize the new verification toggle where system CA stores are inaccessible.
+- **Documentation Refinement**: Restored high-level `Client::new()` examples with hidden CI safety hacks and added developer notes for proxying.
+
 ## [0.1.4] - 2026-05-14
 
 ### Fixed

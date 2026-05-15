@@ -33,7 +33,7 @@ Add `http-quik` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-http-quik = "0.1.4"
+http-quik = "0.1.5"
 ```
 
 Execute a stealth request with automatic OS detection:
