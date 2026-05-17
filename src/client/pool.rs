@@ -5,7 +5,7 @@ use url::Url;
 
 use crate::client::connector::{connect, QuikConnection};
 use crate::client::proxy::Proxy;
-use crate::client::request::inject_chrome_headers;
+use crate::client::request::{inject_chrome_headers, RequestContext};
 use crate::client::response::Response;
 use crate::error::{Error, Result};
 use crate::profile::ChromeProfile;
@@ -30,10 +30,13 @@ use std::sync::RwLock;
 ///
 /// let client = Client::new();
 /// ```
+type SharedConnection = Arc<tokio::sync::Mutex<Option<QuikConnection>>>;
+type ConnectionPool = Arc<Mutex<HashMap<String, SharedConnection>>>;
+
 #[derive(Clone)]
 pub struct Client {
     /// A synchronized pool of active H2 connections keyed by their origin and proxy.
-    pool: Arc<Mutex<HashMap<String, QuikConnection>>>,
+    pool: ConnectionPool,
     /// The canonical identity profile used for all transport-layer operations.
     profile: ChromeProfile,
     /// An optional proxy used for all outbound connections.
@@ -73,12 +76,12 @@ impl Client {
 
     /// Executes a GET request and follows redirects stealthily.
     pub async fn get(&self, url: &str) -> Result<Response> {
-        self.execute_with_redirects("GET", url, None).await
+        self.execute_with_redirects("GET", url, None, RequestContext::Navigate).await
     }
 
     /// Executes a POST request and follows redirects stealthily.
     pub async fn post(&self, url: &str, body: Bytes) -> Result<Response> {
-        self.execute_with_redirects("POST", url, Some(body)).await
+        self.execute_with_redirects("POST", url, Some(body), RequestContext::Navigate).await
     }
 
     /// Core request execution engine with automated, stateful redirect handling.
@@ -98,10 +101,12 @@ impl Client {
         initial_method: &str,
         initial_url: &str,
         initial_body: Option<Bytes>,
+        context: RequestContext,
     ) -> Result<Response> {
         let mut current_url_str = initial_url.to_string();
         let mut current_method = initial_method.to_string();
         let mut current_body = initial_body;
+        let mut previous_url_str: Option<String> = None;
 
         let mut sec_fetch_site = "none".to_string();
         let mut is_cross_site = false;
@@ -174,40 +179,56 @@ impl Client {
 
             // Injects Chrome-identical headers, handling dynamic Sec-Fetch and Priority states.
             let is_initial = hop == 0;
+            // TODO: Extract Accept-CH correctly from cookie store or session if needed. We default to false for initial hop to avoid leaking platform details unnecessarily.
+            let accept_ch = false; 
+
             inject_chrome_headers(
                 request.headers_mut(),
                 &self.profile,
                 &sec_fetch_site,
                 is_initial,
+                context,
+                accept_ch,
+                previous_url_str.as_deref(),
             );
 
-            // Connection acquisition logic.
-            let conn = {
+            // Connection acquisition logic: use an async Mutex per origin to avoid race conditions
+            // where concurrent requests dial redundant TLS connections to the same host.
+            let conn_mutex = {
                 let mut pool = self.pool.lock().map_err(|_| {
                     Error::Connect(std::io::Error::other("connection pool poisoned"))
                 })?;
-                pool.remove(&key)
+                pool.entry(key.clone())
+                    .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(None)))
+                    .clone()
             };
 
-            let mut h2_client = if let Some(mut c) = conn {
-                // Verify if the pooled connection is still active and ready for a new stream.
-                match c.h2.ready().await {
-                    Ok(h2) => {
-                        c.h2 = h2;
-                        c
+            let mut h2_client = {
+                let mut guard = conn_mutex.lock().await;
+                
+                let need_dial = match &mut *guard {
+                    Some(c) => {
+                        // Verify if the pooled connection is still active and ready for a new stream.
+                        match c.h2.clone().ready().await {
+                            Ok(h2) => {
+                                c.h2 = h2;
+                                false
+                            }
+                            Err(_) => true,
+                        }
                     }
-                    Err(_) => self.dial(authority, port, &self.profile).await?,
+                    None => true,
+                };
+
+                if need_dial {
+                    let new_conn = self.dial(authority, port, &self.profile).await?;
+                    *guard = Some(new_conn);
                 }
-            } else {
-                self.dial(authority, port, &self.profile).await?
+
+                guard.as_ref().unwrap().clone()
             };
 
             let mut response = h2_client.send(request, current_body.clone()).await?;
-
-            // Return the connection to the pool for potential reuse.
-            if let Ok(mut pool) = self.pool.lock() {
-                pool.insert(key, h2_client);
-            }
 
             self.store_cookies(&response, &parsed_url);
 
@@ -240,6 +261,7 @@ impl Client {
                         }
                     }
 
+                    previous_url_str = Some(current_url_str);
                     current_url_str = next_url.to_string();
                     continue;
                 }

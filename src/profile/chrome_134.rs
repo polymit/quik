@@ -152,12 +152,37 @@ fn base_h2() -> Http2Profile {
     }
 }
 
-/// `sec-ch-ua` brand string, shared across all platforms.
+/// Generates a randomized `sec-ch-ua` GREASE brand string.
 ///
-/// The GREASE brand (`Not:A-Brand`) and its version (`24`) are fixed for
-/// Chrome 134 and do not vary by OS.
-const SEC_CH_UA: &str =
-    "\"Chromium\";v=\"134\", \"Not:A-Brand\";v=\"24\", \"Google Chrome\";v=\"134\"";
+/// Real Chrome per-session randomizes the brand name, version, and its position
+/// within the list to evade signature-based detection.
+fn generate_sec_ch_ua() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as usize;
+
+    let brands = [
+        "Not:A-Brand",
+        "Not(A:Brand",
+        "Not/A)Brand",
+        "Not A;Brand",
+        "Not;A=Brand",
+    ];
+    let brand = brands[now % brands.len()];
+    
+    // GREASE versions vary (8, 24, 99)
+    let versions = ["8", "24", "99"];
+    let v = versions[now % versions.len()];
+
+    // Vary the position of the GREASE brand
+    if now.is_multiple_of(2) {
+        format!("\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"", brand, v)
+    } else {
+        format!("\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"", brand, v)
+    }
+}
 
 /// Chrome 134 profile for macOS on Apple Silicon (ARM64).
 ///
@@ -173,11 +198,12 @@ pub fn chrome_134_macos_arm() -> ChromeProfile {
             user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
                 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
-            sec_ch_ua: SEC_CH_UA.to_owned(),
+            sec_ch_ua: generate_sec_ch_ua(),
             sec_ch_ua_platform: "\"macOS\"".to_owned(),
             sec_ch_ua_platform_version: "\"15.0.0\"".to_owned(),
             include_priority_header: true,
             zstd_encoding: true,
+            accept_language: "en-US,en;q=0.9".to_owned(),
         },
     }
 }
@@ -196,11 +222,12 @@ pub fn chrome_134_windows_x64() -> ChromeProfile {
             user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) \
                 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
-            sec_ch_ua: SEC_CH_UA.to_owned(),
+            sec_ch_ua: generate_sec_ch_ua(),
             sec_ch_ua_platform: "\"Windows\"".to_owned(),
             sec_ch_ua_platform_version: "\"13.0.0\"".to_owned(),
             include_priority_header: true,
             zstd_encoding: true,
+            accept_language: "en-US,en;q=0.9".to_owned(),
         },
     }
 }
@@ -220,11 +247,12 @@ pub fn chrome_134_linux_x64() -> ChromeProfile {
             user_agent: "Mozilla/5.0 (X11; Linux x86_64) \
                 AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.6998.35 Safari/537.36"
                 .to_owned(),
-            sec_ch_ua: SEC_CH_UA.to_owned(),
+            sec_ch_ua: generate_sec_ch_ua(),
             sec_ch_ua_platform: "\"Linux\"".to_owned(),
             sec_ch_ua_platform_version: "\"0.0.0\"".to_owned(),
             include_priority_header: true,
             zstd_encoding: true,
+            accept_language: "en-US,en;q=0.9".to_owned(),
         },
     }
 }

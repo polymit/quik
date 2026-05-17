@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] - 2026-05-17
+
+There are no API changes in 0.1.6.
+
+### Added
+- **Stateful Request Contexts (`src/client/request.rs`)**: Added `RequestContext` enum (`Navigate`, `Xhr`, `Form`) governing `sec-fetch-dest` and `sec-fetch-mode` header generation. Outbound request headers are now mutated dynamically based on the active fetch origin context.
+- **GREASE Delimiter and Brand Randomization (`src/profile/chrome_134.rs`)**: Implemented dynamic brand list randomization within `sec-ch-ua` to mirror Chrome's non-deterministic user-agent brand fingerprinting, including delimiter rotation, simulated versions, and array index slot positioning.
+- **Concurrent HTTP/2 Connection Pool Multiplexing (`src/client/pool.rs`)**: Redesigned connection pool synchronization to prevent concurrent requests to the same origin from spawning redundant TCP/TLS dials. Wrapped connection entries inside `Arc<tokio::sync::Mutex<Option<QuikConnection>>>` and added origin-level locking for asynchronous stream multiplexing.
+- **Referer Tracking across Redirections (`src/client/pool.rs`)**: Added automatic referer preservation and propagation across sequential redirect hops in the redirection loop.
+
+### Fixed
+- **TLS Signature Algorithm Preferences (`src/tls/connector.rs`)**: Resolved a configuration issue where the legacy `SSL_CTX_set1_sigalgs` API was used with raw algorithm identifiers, causing failures under BoringSSL and silent system defaults fallback. Switched to direct BoringSSL FFI functions (`SSL_CTX_set_signing_algorithm_prefs` and `SSL_CTX_set_verify_algorithm_prefs`) to enforce the Chrome 134 profile signature algorithm order.
+- **Client Hints Information Disclosure (`src/client/request.rs`)**: Suppressed outbound `sec-ch-ua-platform-version` headers on initial requests, emitting them only when explicitly requested by the server via `accept-ch`.
+- **Clippy Quality Gate Hardening**: Resolved strict workspace Clippy warnings and compiler quality blocks, introducing type aliases for complex connection pool types and standardizing modulo operations.
+
 ## [0.1.5] - 2026-05-15
 
 ### Added

@@ -63,7 +63,11 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
     builder.set_cipher_list(profile.cipher_list)?;
 
     // Curves
-    // X25519MLKEM768 is mapped to its internal BoringSSL name.
+    // NOTE(agent): The audit identified a regression where `4588` (X25519MLKEM768)
+    // is transmitted as `25497` (X25519Kyber768Draft00). The `boring` v4.x bindings
+    // and its bundled BoringSSL do not yet support `X25519MLKEM768`. Furthermore,
+    // using `boring_sys::SSL_CTX_set1_groups` with ID 4588 fails because BoringSSL
+    // validates the group IDs. We must retain Draft00 until `boring` is updated.
     let mut curves_str = String::new();
     for (i, &group) in profile.curves.iter().enumerate() {
         if i > 0 {
@@ -105,8 +109,12 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
     // SAFETY: The `ctx_ptr` is valid for the duration of the builder lifecycle.
     // We pass a valid pointer to the sigalgs array and its length.
     unsafe {
-        let sigalgs_i32: Vec<i32> = profile.sigalgs.iter().map(|&s| s as i32).collect();
-        boring_sys::SSL_CTX_set1_sigalgs(ctx_ptr, sigalgs_i32.as_ptr(), sigalgs_i32.len());
+        if boring_sys::SSL_CTX_set_signing_algorithm_prefs(ctx_ptr, profile.sigalgs.as_ptr(), profile.sigalgs.len()) != 1 {
+            return Err(crate::error::Error::TlsBuild(boring::error::ErrorStack::get()));
+        }
+        if boring_sys::SSL_CTX_set_verify_algorithm_prefs(ctx_ptr, profile.sigalgs.as_ptr(), profile.sigalgs.len()) != 1 {
+            return Err(crate::error::Error::TlsBuild(boring::error::ErrorStack::get()));
+        }
     }
 
     // Certificate compression

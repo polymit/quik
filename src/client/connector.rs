@@ -19,6 +19,7 @@ use crate::tls::build_connector;
 /// established during the handshake for the lifetime of the session.
 /// subsequent requests adhere to the same behavioral constraints (e.g.,
 /// same SETTINGS, same window increments).
+#[derive(Clone)]
 pub struct QuikConnection {
     /// The handle used to initiate new H2 streams.
     pub h2: SendRequest<Bytes>,

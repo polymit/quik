@@ -1,6 +1,18 @@
 use crate::profile::ChromeProfile;
 use http::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, USER_AGENT};
 
+/// Defines the context of the network request, mimicking browser fetch metadata.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RequestContext {
+    /// A top-level page navigation (e.g., clicking a link or typing in the URL bar).
+    Navigate,
+    /// An asynchronous XMLHttpRequest or Fetch API call.
+    Xhr,
+    /// A form submission navigation.
+    Form,
+}
+
 /// Injects Chrome-identical headers into the provided request map.
 ///
 /// Populates navigation metadata, Client Hints, compression preferences,
@@ -21,6 +33,9 @@ pub fn inject_chrome_headers(
     profile: &ChromeProfile,
     sec_fetch_site: &str,
     is_initial_navigation: bool,
+    context: RequestContext,
+    accept_ch: bool,
+    referer: Option<&str>,
 ) {
     // 1. Client Hints (Sec-CH-UA)
     // These headers provide granular version and platform information to the server.
@@ -31,8 +46,11 @@ pub fn inject_chrome_headers(
     if let Ok(val) = HeaderValue::from_str(&profile.headers.sec_ch_ua_platform) {
         headers.insert("sec-ch-ua-platform", val);
     }
-    if let Ok(val) = HeaderValue::from_str(&profile.headers.sec_ch_ua_platform_version) {
-        headers.insert("sec-ch-ua-platform-version", val);
+    // Chrome only sends platform-version if explicitly solicited via Accept-CH in previous responses.
+    if accept_ch {
+        if let Ok(val) = HeaderValue::from_str(&profile.headers.sec_ch_ua_platform_version) {
+            headers.insert("sec-ch-ua-platform-version", val);
+        }
     }
 
     // 2. Navigation / Fetch metadata
@@ -48,14 +66,24 @@ pub fn inject_chrome_headers(
     if let Ok(val) = HeaderValue::from_str(sec_fetch_site) {
         headers.insert("sec-fetch-site", val);
     }
-    headers.insert("sec-fetch-mode", HeaderValue::from_static("navigate"));
+    let (mode, dest) = match context {
+        RequestContext::Navigate | RequestContext::Form => ("navigate", "document"),
+        RequestContext::Xhr => ("cors", "empty"),
+    };
+    headers.insert("sec-fetch-mode", HeaderValue::from_static(mode));
 
     // The 'sec-fetch-user' header is present ONLY on the first hop of a user-initiated navigation.
-    if is_initial_navigation {
+    if is_initial_navigation && (context == RequestContext::Navigate || context == RequestContext::Form) {
         headers.insert("sec-fetch-user", HeaderValue::from_static("?1"));
     }
 
-    headers.insert("sec-fetch-dest", HeaderValue::from_static("document"));
+    headers.insert("sec-fetch-dest", HeaderValue::from_static(dest));
+
+    if let Some(r) = referer {
+        if let Ok(val) = HeaderValue::from_str(r) {
+            headers.insert(http::header::REFERER, val);
+        }
+    }
 
     // 3. Compression & Language
     let encoding = if profile.headers.zstd_encoding {
@@ -64,7 +92,9 @@ pub fn inject_chrome_headers(
         "gzip, deflate, br"
     };
     headers.insert(ACCEPT_ENCODING, HeaderValue::from_static(encoding));
-    headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("en-US,en;q=0.9"));
+    if let Ok(val) = HeaderValue::from_str(&profile.headers.accept_language) {
+        headers.insert(ACCEPT_LANGUAGE, val);
+    }
 
     // 4. Chrome Priority Header (u=0, i for navigations)
     if profile.headers.include_priority_header {

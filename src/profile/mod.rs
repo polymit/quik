@@ -163,6 +163,8 @@ pub struct HeaderProfile {
     pub include_priority_header: bool,
     /// Whether to advertise `zstd` in the `accept-encoding` header.
     pub zstd_encoding: bool,
+    /// The Accept-Language header value.
+    pub accept_language: String,
 }
 
 /// A complete, multi-layer identity profile for a Chrome instance.
