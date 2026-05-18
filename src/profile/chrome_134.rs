@@ -157,9 +157,6 @@ fn base_h2() -> Http2Profile {
 /// Real Chrome per-session randomizes the brand name, version, and its position
 /// within the list to evade signature-based detection.
 fn generate_sec_ch_ua() -> String {
-    use rand::Rng;
-    let mut rng = rand::thread_rng();
-
     let brands = [
         "Not:A-Brand",
         "Not(A:Brand",
@@ -167,14 +164,14 @@ fn generate_sec_ch_ua() -> String {
         "Not A;Brand",
         "Not;A=Brand",
     ];
-    let brand = brands[rng.gen_range(0..brands.len())];
+    let brand = brands[rand::random_range(0..brands.len())];
     
     // GREASE versions vary (8, 24, 99)
     let versions = ["8", "24", "99"];
-    let v = versions[rng.gen_range(0..versions.len())];
+    let v = versions[rand::random_range(0..versions.len())];
 
     // Vary the position of the GREASE brand
-    let pos = rng.gen_range(0..3);
+    let pos = rand::random_range(0..3);
     match pos {
         0 => format!("\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"", brand, v),
         1 => format!("\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"", brand, v),

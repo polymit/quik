@@ -33,7 +33,7 @@ cookie_store = "0.21"
 socket2   = "0.5"
 thiserror = "2"
 tracing   = "0.1"
-rand      = "0.8"
+rand      = "0.10"
 
 # Serialization
 serde      = { version = "1", features = ["derive"] }
