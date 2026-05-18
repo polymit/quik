@@ -54,23 +54,25 @@ pub struct TlsMockServer {
     pub addr: SocketAddr,
     /// The dynamic SSL/TLS context backing client connection handshakes.
     acceptor: Arc<SslAcceptor>,
-    /// The underlying async TCP listener.
-    listener: TcpListener,
+    /// The underlying async TCP listener for IPv4.
+    listener_v4: TcpListener,
+    /// The underlying async TCP listener for IPv6.
+    listener_v6: Option<TcpListener>,
 }
 
 #[allow(dead_code)]
 impl TlsMockServer {
     /// Starts a new local `TlsMockServer` instance bound to a dynamic free port.
     ///
-    /// It attempts to bind to the IPv6 wildcard `[::]:0` first to support dual-stack loopback
-    /// (allowing seamless connection via both `127.0.0.1` and `localhost` in various CI environments).
-    /// If IPv6 is disabled on the host, it transparently falls back to IPv4 `127.0.0.1:0`.
+    /// It binds IPv4 `127.0.0.1` first to guarantee direct loopback accessibility,
+    /// and then attempts to bind IPv6 loopback `[::1]` on the exact same port. This enables
+    /// seamless cross-platform client dialing using either `127.0.0.1` or `localhost`.
     pub async fn start() -> Self {
-        let listener = match TcpListener::bind("[::]:0").await {
-            Ok(l) => l,
-            Err(_) => TcpListener::bind("127.0.0.1:0").await.unwrap(),
-        };
-        let addr = listener.local_addr().unwrap();
+        let listener_v4 = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener_v4.local_addr().unwrap();
+        let port = addr.port();
+
+        let listener_v6 = TcpListener::bind(format!("[::1]:{}", port)).await.ok();
 
         // 1. Generate local transient cryptographic identities.
         let (cert, pkey) = generate_self_signed_cert();
@@ -87,7 +89,8 @@ impl TlsMockServer {
         Self {
             addr,
             acceptor,
-            listener,
+            listener_v4,
+            listener_v6,
         }
     }
 
@@ -100,8 +103,16 @@ impl TlsMockServer {
         F: FnOnce(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
-        // 1. Await next TCP connection and upgrade to TLS.
-        let (socket, _) = self.listener.accept().await.unwrap();
+        // 1. Await next TCP connection from either IPv4 or IPv6 listener and upgrade to TLS.
+        let socket = match &self.listener_v6 {
+            Some(lv6) => {
+                tokio::select! {
+                    res = self.listener_v4.accept() => res.unwrap().0,
+                    res = lv6.accept() => res.unwrap().0,
+                }
+            }
+            None => self.listener_v4.accept().await.unwrap().0,
+        };
         let ssl_stream = tokio_boring::accept(&self.acceptor, socket).await.unwrap();
         
         // 2. Perform HTTP/2 frame handshaking.
@@ -137,8 +148,16 @@ impl TlsMockServer {
         F: FnMut(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut + Send + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
-        // 1. Await next TCP connection and upgrade to TLS.
-        let (socket, _) = self.listener.accept().await.unwrap();
+        // 1. Await next TCP connection from either IPv4 or IPv6 listener and upgrade to TLS.
+        let socket = match &self.listener_v6 {
+            Some(lv6) => {
+                tokio::select! {
+                    res = self.listener_v4.accept() => res.unwrap().0,
+                    res = lv6.accept() => res.unwrap().0,
+                }
+            }
+            None => self.listener_v4.accept().await.unwrap().0,
+        };
         let ssl_stream = tokio_boring::accept(&self.acceptor, socket).await.unwrap();
         
         // 2. Perform HTTP/2 frame handshaking.
