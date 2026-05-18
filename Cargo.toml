@@ -14,7 +14,7 @@ categories  = ["network-programming", "web-programming"]
 
 [dependencies]
 # Networking & TLS (BoringSSL stack)
-boring       = "4"
+boring       = { version = "4", features = ["pq-experimental"] }
 boring-sys   = "4"
 tokio-boring = "4"
 http2        = { version = "0.5", features = ["unstable"] } # Fingerprint-capable fork
@@ -26,15 +26,14 @@ bytes = "1"
 
 # Web Protocols & Parsing
 url          = "2"
-publicsuffix = "2"
 cookie       = "0.18"
 cookie_store = "0.21"
 
 # Infrastructure
 socket2   = "0.5"
-dashmap   = "5"
 thiserror = "2"
 tracing   = "0.1"
+rand      = "0.8"
 
 # Serialization
 serde      = { version = "1", features = ["derive"] }

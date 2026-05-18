@@ -157,11 +157,8 @@ fn base_h2() -> Http2Profile {
 /// Real Chrome per-session randomizes the brand name, version, and its position
 /// within the list to evade signature-based detection.
 fn generate_sec_ch_ua() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as usize;
+    use rand::Rng;
+    let mut rng = rand::thread_rng();
 
     let brands = [
         "Not:A-Brand",
@@ -170,17 +167,18 @@ fn generate_sec_ch_ua() -> String {
         "Not A;Brand",
         "Not;A=Brand",
     ];
-    let brand = brands[now % brands.len()];
+    let brand = brands[rng.gen_range(0..brands.len())];
     
     // GREASE versions vary (8, 24, 99)
     let versions = ["8", "24", "99"];
-    let v = versions[now % versions.len()];
+    let v = versions[rng.gen_range(0..versions.len())];
 
     // Vary the position of the GREASE brand
-    if now.is_multiple_of(2) {
-        format!("\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"", brand, v)
-    } else {
-        format!("\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"", brand, v)
+    let pos = rng.gen_range(0..3);
+    match pos {
+        0 => format!("\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"", brand, v),
+        1 => format!("\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"", brand, v),
+        _ => format!("\"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\", \"{}\";v=\"{}\"", brand, v),
     }
 }
 
@@ -224,7 +222,7 @@ pub fn chrome_134_windows_x64() -> ChromeProfile {
                 .to_owned(),
             sec_ch_ua: generate_sec_ch_ua(),
             sec_ch_ua_platform: "\"Windows\"".to_owned(),
-            sec_ch_ua_platform_version: "\"13.0.0\"".to_owned(),
+            sec_ch_ua_platform_version: "\"15.0.0\"".to_owned(),
             include_priority_header: true,
             zstd_encoding: true,
             accept_language: "en-US,en;q=0.9".to_owned(),

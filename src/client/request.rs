@@ -11,6 +11,24 @@ pub enum RequestContext {
     Xhr,
     /// A form submission navigation.
     Form,
+    /// An iframe navigation.
+    Iframe,
+    /// A parser-blocking or async script subresource.
+    NoCorsScript,
+    /// A stylesheet subresource.
+    NoCorsStyle,
+    /// An image subresource.
+    NoCorsImage,
+    /// A font subresource.
+    NoCorsFont,
+    /// A media subresource.
+    NoCorsMedia,
+    /// A Web Worker script.
+    Worker,
+    /// A Service Worker script.
+    ServiceWorker,
+    /// A prefetch request.
+    Prefetch,
 }
 
 /// Injects Chrome-identical headers into the provided request map.
@@ -59,21 +77,28 @@ pub fn inject_chrome_headers(
         headers.insert(USER_AGENT, val);
     }
 
-    // Exact Chrome 134 Accept string including avif, webp, and signed-exchange.
-    headers.insert(ACCEPT, HeaderValue::from_static("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"));
-
     // Inject dynamic sec-fetch-* state based on the current redirect context.
     if let Ok(val) = HeaderValue::from_str(sec_fetch_site) {
         headers.insert("sec-fetch-site", val);
     }
-    let (mode, dest) = match context {
-        RequestContext::Navigate | RequestContext::Form => ("navigate", "document"),
-        RequestContext::Xhr => ("cors", "empty"),
+    let (mode, dest, accept_val) = match context {
+        RequestContext::Navigate | RequestContext::Form => ("navigate", "document", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
+        RequestContext::Iframe => ("navigate", "iframe", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"),
+        RequestContext::Xhr => ("cors", "empty", "*/*"),
+        RequestContext::NoCorsScript => ("no-cors", "script", "*/*"),
+        RequestContext::NoCorsStyle => ("no-cors", "style", "text/css,*/*;q=0.1"),
+        RequestContext::NoCorsImage => ("no-cors", "image", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"),
+        RequestContext::NoCorsFont => ("no-cors", "font", "*/*"),
+        RequestContext::NoCorsMedia => ("no-cors", "video", "*/*"),
+        RequestContext::Worker => ("same-origin", "worker", "*/*"),
+        RequestContext::ServiceWorker => ("same-origin", "serviceworker", "*/*"),
+        RequestContext::Prefetch => ("no-cors", "empty", "*/*"),
     };
+    headers.insert(ACCEPT, HeaderValue::from_static(accept_val));
     headers.insert("sec-fetch-mode", HeaderValue::from_static(mode));
 
     // The 'sec-fetch-user' header is present ONLY on the first hop of a user-initiated navigation.
-    if is_initial_navigation && (context == RequestContext::Navigate || context == RequestContext::Form) {
+    if is_initial_navigation && (context == RequestContext::Navigate || context == RequestContext::Form || context == RequestContext::Iframe) {
         headers.insert("sec-fetch-user", HeaderValue::from_static("?1"));
     }
 

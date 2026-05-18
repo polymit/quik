@@ -46,6 +46,8 @@ pub struct Client {
     /// This store is thread-safe and is automatically updated during redirect
     /// chains and standard request execution.
     pub cookie_store: Arc<RwLock<CookieStore>>,
+    /// A synchronized cache for Client Hints explicitly solicited by servers.
+    pub hint_cache: Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl Default for Client {
@@ -66,6 +68,7 @@ impl Client {
             profile: crate::profile::chrome_134::profile_auto(),
             proxy: None,
             cookie_store: Arc::new(RwLock::new(CookieStore::default())),
+            hint_cache: Arc::new(RwLock::new(std::collections::HashSet::new())),
         })
     }
 
@@ -179,8 +182,21 @@ impl Client {
 
             // Injects Chrome-identical headers, handling dynamic Sec-Fetch and Priority states.
             let is_initial = hop == 0;
-            // TODO: Extract Accept-CH correctly from cookie store or session if needed. We default to false for initial hop to avoid leaking platform details unnecessarily.
-            let accept_ch = false; 
+            let accept_ch = {
+                let cache = self.hint_cache.read().unwrap();
+                cache.contains(&parsed_url.origin().ascii_serialization())
+            };
+
+            // Referer propagation
+            let referer_to_send = previous_url_str.as_ref().map(|prev| {
+                if is_cross_site {
+                    // strict-origin-when-cross-origin: only send origin if cross-origin
+                    if let Ok(prev_url) = Url::parse(prev) {
+                        return prev_url.origin().ascii_serialization() + "/";
+                    }
+                }
+                prev.clone()
+            });
 
             inject_chrome_headers(
                 request.headers_mut(),
@@ -189,7 +205,7 @@ impl Client {
                 is_initial,
                 context,
                 accept_ch,
-                previous_url_str.as_deref(),
+                referer_to_send.as_deref(),
             );
 
             // Connection acquisition logic: use an async Mutex per origin to avoid race conditions
@@ -203,34 +219,36 @@ impl Client {
                     .clone()
             };
 
-            let mut h2_client = {
-                let mut guard = conn_mutex.lock().await;
-                
-                let need_dial = match &mut *guard {
-                    Some(c) => {
-                        // Verify if the pooled connection is still active and ready for a new stream.
-                        match c.h2.clone().ready().await {
-                            Ok(h2) => {
-                                c.h2 = h2;
-                                false
-                            }
-                            Err(_) => true,
-                        }
-                    }
-                    None => true,
+            let mut h2_client = loop {
+                let conn_opt = {
+                    let guard = conn_mutex.lock().await;
+                    guard.as_ref().cloned()
                 };
 
-                if need_dial {
-                    let new_conn = self.dial(authority, port, &self.profile).await?;
-                    *guard = Some(new_conn);
+                if let Some(mut c) = conn_opt {
+                    match c.h2.ready().await {
+                        Ok(h2) => {
+                            c.h2 = h2;
+                            break c;
+                        }
+                        Err(_) => {
+                            let mut guard = conn_mutex.lock().await;
+                            *guard = None;
+                        }
+                    }
+                } else {
+                    let mut guard = conn_mutex.lock().await;
+                    if guard.is_none() {
+                        let new_conn = self.dial(authority, port, &self.profile).await?;
+                        *guard = Some(new_conn);
+                    }
                 }
-
-                guard.as_ref().unwrap().clone()
             };
 
             let mut response = h2_client.send(request, current_body.clone()).await?;
 
             self.store_cookies(&response, &parsed_url);
+            self.store_hints(&response, &parsed_url);
 
             let status = response.status();
             if status.is_redirection() {
@@ -301,6 +319,19 @@ impl Client {
             }
         }
     }
+
+    /// Caches `Accept-CH` headers explicitly requested by the server.
+    fn store_hints(&self, resp: &Response, url: &Url) {
+        if let Some(accept_ch) = resp.headers().get("accept-ch") {
+            if let Ok(ch_str) = accept_ch.to_str() {
+                if ch_str.to_lowercase().contains("sec-ch-ua-platform-version") {
+                    if let Ok(mut cache) = self.hint_cache.write() {
+                        cache.insert(url.origin().ascii_serialization());
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// A builder for constructing a `Client` with specific identity and transport settings.
@@ -358,6 +389,7 @@ impl ClientBuilder {
             cookie_store: self
                 .cookie_store
                 .unwrap_or_else(|| Arc::new(RwLock::new(CookieStore::default()))),
+            hint_cache: Arc::new(RwLock::new(std::collections::HashSet::new())),
         })
     }
 }
