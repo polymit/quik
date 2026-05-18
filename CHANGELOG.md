@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fetch Metadata Unit Coverage (`src/client/request.rs`)**: Added full unit test coverage verifying Fetch Metadata injection for all 11 subresource variants of `RequestContext`, along with HPACK sensitive flag verification.
 
 ### Fixed
-- **Strict Workspace Quality Clippy Hardening**: Resolved compiler warnings for module-level documentation empty lines (`empty_line_after_doc_comments`) and header vector initialization blocks (`vec_init_then_push`).
+- **Fallback Connection Storming & Multiplexing**: Resolved a regression where H3-to-H2 transport fallback would dial a fresh TCP connection even if an active HTTP/2 session was already pooled. The pooler now correctly reuses the pooled H2 multiplexer, preserving connection state and preventing WAF rate-limiting triggers.
+- **Alt-Svc Cache Degradation Lag**: Addressed an issue where failed or timed-out UDP/QUIC handshakes did not promptly evict Alt-Svc cache entries, causing subsequent request attempts to suffer redundant connection delays. The cache is now statefully degraded instantly upon transmission failure.
 - **Windows OS Comment Alignment (`src/profile/chrome_134.rs`, `src/profile/mod.rs`)**: Fixed outdated developer comments referring to Windows version "13.0.0" to correctly match the active "15.0.0" implementation.
 
 ## [0.1.7] - 2026-05-18
