@@ -33,6 +33,11 @@
 //!   behavioral fingerprints across request chains.
 //! - **Stealth Redirects** — A redirect state machine that handles `sec-fetch-*`
 //!   headers and method rotation identical to Chromium.
+//! - **Rich Fetch Contexts** — Supports 11 distinct [`client::RequestContext`] variants
+//!   (e.g., `NoCorsImage`, `Worker`, `Iframe`) to ensure secondary resource requests
+//!   generate the exact matching `sec-fetch-*` and accept headers.
+//! - **Stateful Client Hints** — Features an automated `hint_cache` on the `Client` to statefully
+//!   track and respond to server `Accept-CH` platform hints on subsequent origin calls.
 //!
 //! ## Getting Started
 //!
@@ -97,7 +102,7 @@ pub mod profile;
 /// extension permutation.
 pub(crate) mod tls;
 
-pub use crate::client::{connect, Client, ClientBuilder, Response};
+pub use crate::client::{connect, Client, ClientBuilder, Response, RequestContext};
 pub use crate::error::{Error, Result};
 pub use crate::profile::chrome_134::AKAMAI_FINGERPRINT;
 pub use crate::profile::chrome_134::JA3_HASH;

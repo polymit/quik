@@ -24,7 +24,9 @@ Modern anti-bot systems (like Cloudflare, Akamai, and DataDome) use passive fing
 - **BoringSSL Integration**: Deep FFI bindings for low-level TLS control.
 - **Chrome 134 Identity**: Bit-perfect replication of the latest stable Chrome releases.
 - **OS Auto-Detection**: Defaults to a profile matching the host system (macOS, Windows, or Linux) for out-of-the-box stealth.
-- **Connection Pooling**: Managed H2 session reuse to maintain behavioral consistency.
+- **Connection Pooling**: Managed H2 session reuse with concurrent lock-free stream readiness checks.
+- **Rich Fetch Contexts**: Support for 11 distinct `RequestContext` variants (such as scripts, styles, images, and workers) with automated metadata matching.
+- **Stateful Client Hints**: Automated cache (`Client::hint_cache`) tracking server-solicited `Accept-CH` headers to transmit platform details statefully.
 - **Customizable Profiles**: Explicitly target specific platforms regardless of the host environment.
 
 ## Quick Start

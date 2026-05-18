@@ -8,3 +8,4 @@ pub use connector::{connect, QuikConnection};
 pub use pool::{Client, ClientBuilder};
 pub use proxy::Proxy;
 pub use response::Response;
+pub use request::RequestContext;
