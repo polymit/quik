@@ -15,16 +15,19 @@ This crate is a core component of the [Phantom Engine](https://github.com/polymi
 Modern anti-bot systems (like Cloudflare, Akamai, and DataDome) use passive fingerprinting to identify automated traffic. `http-quik` bypasses these systems by enforcing **Total Identity Consistency** across multiple layers:
 
 - **TLS Fingerprints (JA3/JA4)**: Replicates Chrome's ClientHello using a custom BoringSSL stack, including GREASE, extension permutation, and post-quantum key shares (X25519MLKEM768).
+- **HTTP/3 & QUIC Fingerprints**: Emulates Chrome v134-136 transport layouts using `quiche` over BoringSSL, supporting empty client CIDs, static/dynamic QPACK setups, PMTU discovery, and dynamic grease frames.
 - **HTTP/2 Fingerprints (Akamai)**: Replicates Chromium's SETTINGS frame order, pseudo-header sequences, and connection window increments.
 - **Cross-Platform Alignment**: Automatically aligns the TLS ALPS payload and Client Hints (`sec-ch-ua-platform`) with the host operating system to prevent p0f mismatches.
 - **Behavioral Fingerprints**: Implements a Chrome-identical redirect state machine that handles `sec-fetch-*` headers and method rotation.
+- **Dual-Stack Alt-Svc Fallback**: Stateful connection pooler automatically tracking server-solicited `Alt-Svc` headers, executing zero-delay transparent fallback to multiplexed H2 TCP streams on UDP network blockages.
 
 ## Core Capabilities
 
 - **BoringSSL Integration**: Deep FFI bindings for low-level TLS control.
-- **Chrome 134 Identity**: Bit-perfect replication of the latest stable Chrome releases.
+- **Chrome 134-136 Identity**: Bit-perfect replication of stable Chrome browser profiles.
+- **Stealth HTTP/3 + QUIC**: Unified transport loop running dynamic pacers and Chrome settings.
 - **OS Auto-Detection**: Defaults to a profile matching the host system (macOS, Windows, or Linux) for out-of-the-box stealth.
-- **Connection Pooling**: Managed H2 session reuse with concurrent lock-free stream readiness checks.
+- **Connection Pooling**: Managed H2/H3 session reuse with concurrent lock-free stream readiness checks.
 - **Rich Fetch Contexts**: Support for 11 distinct `RequestContext` variants (such as scripts, styles, images, and workers) with automated metadata matching.
 - **Stateful Client Hints**: Automated cache (`Client::hint_cache`) tracking server-solicited `Accept-CH` headers to transmit platform details statefully.
 - **Customizable Profiles**: Explicitly target specific platforms regardless of the host environment.
@@ -35,7 +38,7 @@ Add `http-quik` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-http-quik = "0.1.7"
+http-quik = "0.1.8"
 ```
 
 Execute a stealth request with automatic OS detection:
