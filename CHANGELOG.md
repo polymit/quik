@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-05-18
+
+### Added
+- **Stateful Client Hints Caching (`src/client/pool.rs`)**: Introduced an automated, thread-safe `HintCache` (`Arc<RwLock<HashSet<String>>>`) to statefully track server-solicited `Accept-CH` headers, allowing the transport engine to emit the requested high-entropy platform version hints statefully.
+- **Forensic Fetch Context Completion (`src/client/request.rs`)**: Expanded `RequestContext` to cover 11 specialized browser resource requests (Iframe, NoCorsScript, NoCorsStyle, NoCorsImage, NoCorsFont, NoCorsMedia, Worker, ServiceWorker, Prefetch) with exact `sec-fetch-*` modes, destinations, and context-dependent Accept headers.
+- **Public API Exposure**: Publicly re-exported `RequestContext` at the crate root to enable external developers to programmatically control outbound subresource request metadata.
+
+### Fixed
+- **Post-Quantum ML-KEM Group Parity (`src/tls/connector.rs`, `Cargo.toml`)**: Enabled `pq-experimental` on `boring` and resolved the regression where post-quantum curve `4588` failed to resolve, perfectly matching standard Chrome 134 ClientHello fingerprints.
+- **Connection Pool Head-of-Line Starvation (`src/client/pool.rs`)**: Refactored the HTTP/2 stream acquisition logic to clone active connections outside of the pool's async locking context, eliminating HoL blocking when concurrent requests await capacity.
+- **Cross-Origin Referer Stripping (`src/client/pool.rs`)**: Implemented dynamic `strict-origin-when-cross-origin` policy enforcement, stripping path and query parameters for cross-site redirect hops.
+- **GREASE Brand Shuffling & OS Accuracy (`src/profile/chrome_134.rs`, `Cargo.toml`)**: Upgraded to the modern `rand 0.10.1` API, resolving time-modulo correlations and brand alignment anomalies by uniformly shuffling GREASE names, versions (8/24/99), and position arrays across all three real Chrome configurations.
+- **Platform Staleness Bumping**: Updated Windows 11 platform version to `"15.0.0"` (Windows 11 24H2) to prevent bot-detection heuristics from flagging EOL OS signals.
+
 ## [0.1.6] - 2026-05-17
 
 There are no API changes in 0.1.6.
