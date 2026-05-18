@@ -60,9 +60,16 @@ pub struct TlsMockServer {
 
 #[allow(dead_code)]
 impl TlsMockServer {
-    /// Starts a new local `TlsMockServer` instance bound to a dynamic free port on 127.0.0.1.
+    /// Starts a new local `TlsMockServer` instance bound to a dynamic free port.
+    ///
+    /// It attempts to bind to the IPv6 wildcard `[::]:0` first to support dual-stack loopback
+    /// (allowing seamless connection via both `127.0.0.1` and `localhost` in various CI environments).
+    /// If IPv6 is disabled on the host, it transparently falls back to IPv4 `127.0.0.1:0`.
     pub async fn start() -> Self {
-        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let listener = match TcpListener::bind("[::]:0").await {
+            Ok(l) => l,
+            Err(_) => TcpListener::bind("127.0.0.1:0").await.unwrap(),
+        };
         let addr = listener.local_addr().unwrap();
 
         // 1. Generate local transient cryptographic identities.

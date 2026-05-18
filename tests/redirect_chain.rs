@@ -11,7 +11,7 @@ use http_quik::{Client, Platform};
 /// to avoid leaking sensitive information on the wire.
 #[tokio::test]
 async fn test_redirect_referer_policy_stripping_tls() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Initialize local hermetic TLS Mock Server
+    // 1. Initialize local hermetic TLS Mock Server (bound to [::]:0 for dual-stack support)
     let server = TlsMockServer::start().await;
     let port = server.addr.port();
 
@@ -53,7 +53,7 @@ async fn test_redirect_referer_policy_stripping_tls() -> Result<(), Box<dyn std:
         .danger_accept_invalid_certs(true)
         .build()?;
 
-    // 4. Dial the source endpoint
+    // 4. Dial the source endpoint using IPv4 address explicitly
     let target_url = format!("https://127.0.0.1:{}/source", port);
     let response = client.get(&target_url).await?;
 
