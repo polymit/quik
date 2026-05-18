@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Hermetic H2 + TLS Mock Server (`tests/common/mod.rs`)**: Implemented a dynamic, offline-safe mock HTTP/2 server that generates transient self-signed certificates and RSA key pairs at runtime via the BoringSSL cryptographic engine. Supports both single-connection and multi-connection multiplexed frame processing.
+- **Elite Integration Test Suite**:
+  - `tests/context_headers.rs`: End-to-end integration test validating Navigate request context headers on the wire.
+  - `tests/fingerprint.rs`: TCP ClientHello interceptor asserting strict TLS Record Encapsulation and Handshake message layout.
+  - `tests/redirect_chain.rs`: Dynamic cross-origin referral integrity validation (`strict-origin-when-cross-origin`).
+  - `tests/waf_scenarios.rs`: Multi-stream keep-alive validation asserting stateful `Accept-CH` Client Hints platform version caching.
+- **Fetch Metadata Unit Coverage (`src/client/request.rs`)**: Added full unit test coverage verifying Fetch Metadata injection for all 11 subresource variants of `RequestContext`, along with HPACK sensitive flag verification.
+
+### Fixed
+- **Windows OS Comment Alignment (`src/profile/chrome_134.rs`, `src/profile/mod.rs`)**: Fixed outdated developer comments referring to Windows version "13.0.0" to correctly match the active "15.0.0" implementation.
+
 ## [0.1.7] - 2026-05-18
 
 ### Added

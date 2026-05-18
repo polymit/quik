@@ -206,7 +206,7 @@ pub fn chrome_134_macos_arm() -> ChromeProfile {
 /// Chrome 134 profile for Windows 11 on x86-64.
 ///
 /// Uses the 30-byte ALPS payload (includes setting `0x7A9A`) and reports
-/// `sec-ch-ua-platform-version` as `"13.0.0"` (Windows 11 kernel version).
+/// `sec-ch-ua-platform-version` as `"15.0.0"` (Windows 11 kernel version).
 pub fn chrome_134_windows_x64() -> ChromeProfile {
     ChromeProfile {
         version: 134,

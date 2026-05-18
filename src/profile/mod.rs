@@ -156,7 +156,7 @@ pub struct HeaderProfile {
     pub sec_ch_ua_platform: String,
     /// `sec-ch-ua-platform-version` Client Hint.
     ///
-    /// Must match the host OS: Windows 11 reports `"13.0.0"`,
+    /// Must match the host OS: Windows 11 reports `"15.0.0"`,
     /// macOS Sequoia reports `"15.0.0"`, Linux reports `"0.0.0"`.
     pub sec_ch_ua_platform_version: String,
     /// Whether to include the RFC 9218 `priority` header (e.g., `u=0, i`).
