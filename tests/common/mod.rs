@@ -11,7 +11,7 @@ use tokio::net::TcpListener;
 
 /// Generates a valid self-signed TLS certificate and private key at runtime.
 ///
-/// This cryptographic utility leverages `BoringSSL`'s X509 API to generate a transient, 
+/// This cryptographic utility leverages `BoringSSL`'s X509 API to generate a transient,
 /// short-lived self-signed certificate (`CN=127.0.0.1`) and a 2048-bit RSA key pair.
 /// The output is used to bootstrap local HTTPS integration mock environments offline.
 pub fn generate_self_signed_cert() -> (X509, PKey<boring::pkey::Private>) {
@@ -46,7 +46,7 @@ pub fn generate_self_signed_cert() -> (X509, PKey<boring::pkey::Private>) {
 
 /// A highly compliant TLS Mock Server running native HTTP/2 over TLS.
 ///
-/// Under `http-quik` transport specifications, connections are strictly negotiated 
+/// Under `http-quik` transport specifications, connections are strictly negotiated
 /// over TLS with advanced ALPN constraints. `TlsMockServer` implements a local
 /// HTTP/2-over-TLS receiver to simulate high-fidelity network exchanges hermetically.
 pub struct TlsMockServer {
@@ -76,7 +76,7 @@ impl TlsMockServer {
 
         // 1. Generate local transient cryptographic identities.
         let (cert, pkey) = generate_self_signed_cert();
-        
+
         // 2. Configure SslAcceptor with modern cryptographic guidelines (Mozilla Intermediate).
         let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls()).unwrap();
         acceptor.set_private_key(&pkey).unwrap();
@@ -98,9 +98,11 @@ impl TlsMockServer {
     ///
     /// The remaining lifespan of the HTTP/2 connection state machine is automatically
     /// driven to completion on a background task via the `PollClose` state driver.
-    pub async fn handle_next_h2<F, Fut>(&self, handler: F) 
+    pub async fn handle_next_h2<F, Fut>(&self, handler: F)
     where
-        F: FnOnce(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut + Send + 'static,
+        F: FnOnce(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut
+            + Send
+            + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
         // 1. Await next TCP connection from either IPv4 or IPv6 listener and upgrade to TLS.
@@ -114,17 +116,25 @@ impl TlsMockServer {
             None => self.listener_v4.accept().await.unwrap().0,
         };
         let ssl_stream = tokio_boring::accept(&self.acceptor, socket).await.unwrap();
-        
+
         // 2. Perform HTTP/2 frame handshaking.
         let mut h2_conn = http2::server::handshake(ssl_stream).await.unwrap();
         if let Some(result) = h2_conn.accept().await {
             let (req, resp) = result.unwrap();
 
             // 3. Define a custom future wrapper to drive background polling of connection closure.
-            struct PollClose(http2::server::Connection<tokio_boring::SslStream<tokio::net::TcpStream>, bytes::Bytes>);
+            struct PollClose(
+                http2::server::Connection<
+                    tokio_boring::SslStream<tokio::net::TcpStream>,
+                    bytes::Bytes,
+                >,
+            );
             impl std::future::Future for PollClose {
                 type Output = Result<(), http2::Error>;
-                fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+                fn poll(
+                    mut self: std::pin::Pin<&mut Self>,
+                    cx: &mut std::task::Context<'_>,
+                ) -> std::task::Poll<Self::Output> {
                     self.0.poll_closed(cx)
                 }
             }
@@ -133,7 +143,7 @@ impl TlsMockServer {
             tokio::spawn(async move {
                 let _ = PollClose(h2_conn).await;
             });
-            
+
             // 5. Yield control back to the specific test scenario callback.
             handler(req, resp).await;
         }
@@ -143,9 +153,11 @@ impl TlsMockServer {
     ///
     /// This utility is highly useful for validating pooled/keep-alive behaviors (e.g. dynamic `Accept-CH` cache lookups)
     /// where multiple sequential requests reuse the exact same TCP/TLS session pipeline.
-    pub async fn handle_next_h2_multi<F, Fut>(&self, num_streams: usize, mut handler: F) 
+    pub async fn handle_next_h2_multi<F, Fut>(&self, num_streams: usize, mut handler: F)
     where
-        F: FnMut(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut + Send + 'static,
+        F: FnMut(http::Request<http2::RecvStream>, http2::server::SendResponse<Bytes>) -> Fut
+            + Send
+            + 'static,
         Fut: std::future::Future<Output = ()> + Send + 'static,
     {
         // 1. Await next TCP connection from either IPv4 or IPv6 listener and upgrade to TLS.
@@ -159,10 +171,10 @@ impl TlsMockServer {
             None => self.listener_v4.accept().await.unwrap().0,
         };
         let ssl_stream = tokio_boring::accept(&self.acceptor, socket).await.unwrap();
-        
+
         // 2. Perform HTTP/2 frame handshaking.
         let mut h2_conn = http2::server::handshake(ssl_stream).await.unwrap();
-        
+
         // 3. Process the exact number of streams sequentially over the multiplexed pipeline.
         for _ in 0..num_streams {
             if let Some(result) = h2_conn.accept().await {
@@ -172,10 +184,15 @@ impl TlsMockServer {
         }
 
         // 4. Define connection-close future driver.
-        struct PollClose(http2::server::Connection<tokio_boring::SslStream<tokio::net::TcpStream>, bytes::Bytes>);
+        struct PollClose(
+            http2::server::Connection<tokio_boring::SslStream<tokio::net::TcpStream>, bytes::Bytes>,
+        );
         impl std::future::Future for PollClose {
             type Output = Result<(), http2::Error>;
-            fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Self::Output> {
+            fn poll(
+                mut self: std::pin::Pin<&mut Self>,
+                cx: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Self::Output> {
                 self.0.poll_closed(cx)
             }
         }

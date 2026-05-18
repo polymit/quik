@@ -18,6 +18,7 @@ boring       = { version = "4", features = ["pq-experimental"] }
 boring-sys   = "4"
 tokio-boring = "4"
 http2        = { version = "0.5", features = ["unstable"] } # Fingerprint-capable fork
+quiche       = { version = "0.22", default-features = false, features = ["boringssl-boring-crate"] }
 
 # Core Async & Types
 tokio = { version = "1", features = ["full"] }

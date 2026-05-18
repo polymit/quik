@@ -165,7 +165,7 @@ fn generate_sec_ch_ua() -> String {
         "Not;A=Brand",
     ];
     let brand = brands[rand::random_range(0..brands.len())];
-    
+
     // GREASE versions vary (8, 24, 99)
     let versions = ["8", "24", "99"];
     let v = versions[rand::random_range(0..versions.len())];
@@ -173,9 +173,18 @@ fn generate_sec_ch_ua() -> String {
     // Vary the position of the GREASE brand
     let pos = rand::random_range(0..3);
     match pos {
-        0 => format!("\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"", brand, v),
-        1 => format!("\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"", brand, v),
-        _ => format!("\"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\", \"{}\";v=\"{}\"", brand, v),
+        0 => format!(
+            "\"{}\";v=\"{}\", \"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\"",
+            brand, v
+        ),
+        1 => format!(
+            "\"Chromium\";v=\"134\", \"{}\";v=\"{}\", \"Google Chrome\";v=\"134\"",
+            brand, v
+        ),
+        _ => format!(
+            "\"Chromium\";v=\"134\", \"Google Chrome\";v=\"134\", \"{}\";v=\"{}\"",
+            brand, v
+        ),
     }
 }
 

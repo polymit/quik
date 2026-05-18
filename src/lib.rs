@@ -60,7 +60,7 @@
 //! ```
 //!
 //! > [!NOTE]
-//! > For local development, testing, or proxying (e.g., mitmproxy), you can 
+//! > For local development, testing, or proxying (e.g., mitmproxy), you can
 //! > use [`Client::builder()`] with `.danger_accept_invalid_certs(true)` to
 //! > bypass TLS verification.
 //!
@@ -102,7 +102,7 @@ pub mod profile;
 /// extension permutation.
 pub(crate) mod tls;
 
-pub use crate::client::{connect, Client, ClientBuilder, Response, RequestContext};
+pub use crate::client::{connect, Client, ClientBuilder, RequestContext, Response};
 pub use crate::error::{Error, Result};
 pub use crate::profile::chrome_134::AKAMAI_FINGERPRINT;
 pub use crate::profile::chrome_134::JA3_HASH;

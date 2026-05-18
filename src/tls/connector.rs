@@ -64,7 +64,7 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
 
     // Curves
     // NOTE(agent): We resolve the PQ ML-KEM regression by enabling the `pq-experimental`
-    // feature on the `boring` crate, allowing group `4588` to correctly resolve to 
+    // feature on the `boring` crate, allowing group `4588` to correctly resolve to
     // `"X25519MLKEM768"`, achieving perfect Chrome 134 TLS group parity.
     let mut curves_str = String::new();
     for (i, &group) in profile.curves.iter().enumerate() {
@@ -107,11 +107,25 @@ pub fn build_connector(profile: &TlsProfile) -> Result<SslConnector> {
     // SAFETY: The `ctx_ptr` is valid for the duration of the builder lifecycle.
     // We pass a valid pointer to the sigalgs array and its length.
     unsafe {
-        if boring_sys::SSL_CTX_set_signing_algorithm_prefs(ctx_ptr, profile.sigalgs.as_ptr(), profile.sigalgs.len()) != 1 {
-            return Err(crate::error::Error::TlsBuild(boring::error::ErrorStack::get()));
+        if boring_sys::SSL_CTX_set_signing_algorithm_prefs(
+            ctx_ptr,
+            profile.sigalgs.as_ptr(),
+            profile.sigalgs.len(),
+        ) != 1
+        {
+            return Err(crate::error::Error::TlsBuild(
+                boring::error::ErrorStack::get(),
+            ));
         }
-        if boring_sys::SSL_CTX_set_verify_algorithm_prefs(ctx_ptr, profile.sigalgs.as_ptr(), profile.sigalgs.len()) != 1 {
-            return Err(crate::error::Error::TlsBuild(boring::error::ErrorStack::get()));
+        if boring_sys::SSL_CTX_set_verify_algorithm_prefs(
+            ctx_ptr,
+            profile.sigalgs.as_ptr(),
+            profile.sigalgs.len(),
+        ) != 1
+        {
+            return Err(crate::error::Error::TlsBuild(
+                boring::error::ErrorStack::get(),
+            ));
         }
     }
 

@@ -20,37 +20,46 @@ async fn test_accept_ch_dynamic_solicitation_flow_tls() -> Result<(), Box<dyn st
 
     // 2. Spawn the background TLS handler to process sequential streams on a single reused H2 connection
     let server_handle = tokio::spawn(async move {
-        server.handle_next_h2_multi(2, move |req, mut respond| async move {
-            match req.uri().path() {
-                "/challenge" => {
-                    // Expect that client hints are NOT leaked unsolicited on first request
-                    assert!(req.headers().get("sec-ch-ua-platform-version").is_none());
+        server
+            .handle_next_h2_multi(2, move |req, mut respond| async move {
+                match req.uri().path() {
+                    "/challenge" => {
+                        // Expect that client hints are NOT leaked unsolicited on first request
+                        assert!(req.headers().get("sec-ch-ua-platform-version").is_none());
 
-                    // Respond with solicitation header challenge
-                    let response = http::Response::builder()
-                        .status(200)
-                        .header("Accept-CH", "sec-ch-ua-platform-version")
-                        .body(())
-                        .unwrap();
-                    let _ = respond.send_response(response, true).unwrap();
-                }
-                "/resource" => {
-                    // Assert that the client successfully parsed, cached, and sent the requested hint
-                    let platform_version = req.headers().get("sec-ch-ua-platform-version").unwrap().to_str().unwrap();
-                    assert_eq!(platform_version, "\"15.0.0\"");
+                        // Respond with solicitation header challenge
+                        let response = http::Response::builder()
+                            .status(200)
+                            .header("Accept-CH", "sec-ch-ua-platform-version")
+                            .body(())
+                            .unwrap();
+                        let _ = respond.send_response(response, true).unwrap();
+                    }
+                    "/resource" => {
+                        // Assert that the client successfully parsed, cached, and sent the requested hint
+                        let platform_version = req
+                            .headers()
+                            .get("sec-ch-ua-platform-version")
+                            .unwrap()
+                            .to_str()
+                            .unwrap();
+                        assert_eq!(platform_version, "\"15.0.0\"");
 
-                    // Respond with 200 OK to finalize
-                    let response = http::Response::builder().status(200).body(()).unwrap();
-                    let _ = respond.send_response(response, true).unwrap();
+                        // Respond with 200 OK to finalize
+                        let response = http::Response::builder().status(200).body(()).unwrap();
+                        let _ = respond.send_response(response, true).unwrap();
+                    }
+                    _ => panic!("Unexpected request path: {}", req.uri().path()),
                 }
-                _ => panic!("Unexpected request path: {}", req.uri().path()),
-            }
-        }).await;
+            })
+            .await;
     });
 
     // 3. Construct the client bypass-verifying our self-signed TLS certs under Windows profile
     let client = Client::builder()
-        .profile(http_quik::profile::chrome_134::profile(Platform::WindowsX64))
+        .profile(http_quik::profile::chrome_134::profile(
+            Platform::WindowsX64,
+        ))
         .danger_accept_invalid_certs(true)
         .build()?;
 

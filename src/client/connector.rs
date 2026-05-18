@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 
 use crate::client::proxy::{dial_proxy, Proxy};
-use crate::client::response::Response;
+use crate::client::response::{Response, ResponseBody};
 use crate::error::Result;
 use crate::http2::configure_builder;
 use crate::profile::ChromeProfile;
@@ -158,11 +158,23 @@ impl QuikConnection {
             let (response_future, mut send_stream) = self.h2.send_request(request, false)?;
             send_stream.send_data(data, true)?;
             let response = response_future.await?;
-            Ok(Response::new(response, url_str))
+            let (parts, body_stream) = response.into_parts();
+            Ok(Response::new(
+                parts.status,
+                parts.headers,
+                ResponseBody::Http2(body_stream),
+                url_str,
+            ))
         } else {
             let (response_future, _) = self.h2.send_request(request, true)?;
             let response = response_future.await?;
-            Ok(Response::new(response, url_str))
+            let (parts, body_stream) = response.into_parts();
+            Ok(Response::new(
+                parts.status,
+                parts.headers,
+                ResponseBody::Http2(body_stream),
+                url_str,
+            ))
         }
     }
 }

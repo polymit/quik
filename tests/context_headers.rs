@@ -18,18 +18,54 @@ async fn test_navigate_context_headers_over_tls_mock() -> Result<(), Box<dyn std
 
     // 2. Spawn the background TLS + H2 handler task to validate incoming request stream
     let server_handle = tokio::spawn(async move {
-        server.handle_next_h2(|req, mut respond| async move {
-            // Verify all high-fidelity Chrome Navigate markers on the intercepted request
-            assert_eq!(req.headers().get("sec-fetch-dest").unwrap().to_str().unwrap(), "document");
-            assert_eq!(req.headers().get("sec-fetch-mode").unwrap().to_str().unwrap(), "navigate");
-            assert_eq!(req.headers().get("sec-fetch-user").unwrap().to_str().unwrap(), "?1");
-            assert_eq!(req.headers().get("upgrade-insecure-requests").unwrap().to_str().unwrap(), "1");
-            assert!(req.headers().get("user-agent").unwrap().to_str().unwrap().contains("Chrome"));
+        server
+            .handle_next_h2(|req, mut respond| async move {
+                // Verify all high-fidelity Chrome Navigate markers on the intercepted request
+                assert_eq!(
+                    req.headers()
+                        .get("sec-fetch-dest")
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                    "document"
+                );
+                assert_eq!(
+                    req.headers()
+                        .get("sec-fetch-mode")
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                    "navigate"
+                );
+                assert_eq!(
+                    req.headers()
+                        .get("sec-fetch-user")
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                    "?1"
+                );
+                assert_eq!(
+                    req.headers()
+                        .get("upgrade-insecure-requests")
+                        .unwrap()
+                        .to_str()
+                        .unwrap(),
+                    "1"
+                );
+                assert!(req
+                    .headers()
+                    .get("user-agent")
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .contains("Chrome"));
 
-            // Respond with a standard empty HTTP/2 OK status (200) frame
-            let response = http::Response::builder().status(200).body(()).unwrap();
-            let _ = respond.send_response(response, true).unwrap();
-        }).await;
+                // Respond with a standard empty HTTP/2 OK status (200) frame
+                let response = http::Response::builder().status(200).body(()).unwrap();
+                let _ = respond.send_response(response, true).unwrap();
+            })
+            .await;
     });
 
     // 3. Construct the client bypass-verifying our self-signed TLS certs

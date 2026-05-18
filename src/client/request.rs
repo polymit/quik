@@ -98,7 +98,11 @@ pub fn inject_chrome_headers(
     headers.insert("sec-fetch-mode", HeaderValue::from_static(mode));
 
     // The 'sec-fetch-user' header is present ONLY on the first hop of a user-initiated navigation.
-    if is_initial_navigation && (context == RequestContext::Navigate || context == RequestContext::Form || context == RequestContext::Iframe) {
+    if is_initial_navigation
+        && (context == RequestContext::Navigate
+            || context == RequestContext::Form
+            || context == RequestContext::Iframe)
+    {
         headers.insert("sec-fetch-user", HeaderValue::from_static("?1"));
     }
 
@@ -160,35 +164,106 @@ mod tests {
         // Scenario 1: Navigation context (Navigate)
         // High-entropy platform hints should NOT be leaked unsolicited on the initial request.
         let mut headers = HeaderMap::new();
-        inject_chrome_headers(&mut headers, &profile, "same-origin", true, RequestContext::Navigate, false, None);
-        assert_eq!(headers.get("sec-fetch-dest").unwrap().to_str().unwrap(), "document");
-        assert_eq!(headers.get("sec-fetch-mode").unwrap().to_str().unwrap(), "navigate");
-        assert_eq!(headers.get("sec-fetch-user").unwrap().to_str().unwrap(), "?1");
+        inject_chrome_headers(
+            &mut headers,
+            &profile,
+            "same-origin",
+            true,
+            RequestContext::Navigate,
+            false,
+            None,
+        );
+        assert_eq!(
+            headers.get("sec-fetch-dest").unwrap().to_str().unwrap(),
+            "document"
+        );
+        assert_eq!(
+            headers.get("sec-fetch-mode").unwrap().to_str().unwrap(),
+            "navigate"
+        );
+        assert_eq!(
+            headers.get("sec-fetch-user").unwrap().to_str().unwrap(),
+            "?1"
+        );
         assert!(headers.get("sec-ch-ua-platform-version").is_none());
 
         // Scenario 2: Standard API request (Xhr)
         // Platform hints are present if solicited or configured statefully.
         let mut headers = HeaderMap::new();
-        inject_chrome_headers(&mut headers, &profile, "cross-site", false, RequestContext::Xhr, true, None);
-        assert_eq!(headers.get("sec-fetch-dest").unwrap().to_str().unwrap(), "empty");
-        assert_eq!(headers.get("sec-fetch-mode").unwrap().to_str().unwrap(), "cors");
+        inject_chrome_headers(
+            &mut headers,
+            &profile,
+            "cross-site",
+            false,
+            RequestContext::Xhr,
+            true,
+            None,
+        );
+        assert_eq!(
+            headers.get("sec-fetch-dest").unwrap().to_str().unwrap(),
+            "empty"
+        );
+        assert_eq!(
+            headers.get("sec-fetch-mode").unwrap().to_str().unwrap(),
+            "cors"
+        );
         assert!(headers.get("sec-fetch-user").is_none());
-        assert_eq!(headers.get("sec-ch-ua-platform-version").unwrap().to_str().unwrap(), "\"15.0.0\""); // Windows 11 platform version with double quotes
+        assert_eq!(
+            headers
+                .get("sec-ch-ua-platform-version")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "\"15.0.0\""
+        ); // Windows 11 platform version with double quotes
 
         // Scenario 3: Image fetch (NoCorsImage)
         // Checks that the specific Accept header is set to Chrome's default image formats.
         let mut headers = HeaderMap::new();
-        inject_chrome_headers(&mut headers, &profile, "same-site", false, RequestContext::NoCorsImage, false, None);
-        assert_eq!(headers.get("sec-fetch-dest").unwrap().to_str().unwrap(), "image");
-        assert_eq!(headers.get("sec-fetch-mode").unwrap().to_str().unwrap(), "no-cors");
-        assert!(headers.get("accept").unwrap().to_str().unwrap().contains("image/avif"));
+        inject_chrome_headers(
+            &mut headers,
+            &profile,
+            "same-site",
+            false,
+            RequestContext::NoCorsImage,
+            false,
+            None,
+        );
+        assert_eq!(
+            headers.get("sec-fetch-dest").unwrap().to_str().unwrap(),
+            "image"
+        );
+        assert_eq!(
+            headers.get("sec-fetch-mode").unwrap().to_str().unwrap(),
+            "no-cors"
+        );
+        assert!(headers
+            .get("accept")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("image/avif"));
 
         // Scenario 4: Background script execution (ServiceWorker)
         // Tests that specific background process contexts map appropriately.
         let mut headers = HeaderMap::new();
-        inject_chrome_headers(&mut headers, &profile, "same-origin", false, RequestContext::ServiceWorker, false, None);
-        assert_eq!(headers.get("sec-fetch-dest").unwrap().to_str().unwrap(), "serviceworker");
-        assert_eq!(headers.get("sec-fetch-mode").unwrap().to_str().unwrap(), "same-origin");
+        inject_chrome_headers(
+            &mut headers,
+            &profile,
+            "same-origin",
+            false,
+            RequestContext::ServiceWorker,
+            false,
+            None,
+        );
+        assert_eq!(
+            headers.get("sec-fetch-dest").unwrap().to_str().unwrap(),
+            "serviceworker"
+        );
+        assert_eq!(
+            headers.get("sec-fetch-mode").unwrap().to_str().unwrap(),
+            "same-origin"
+        );
     }
 
     /// Verifies that sensitive authorization and session headers are explicitly marked.
@@ -204,12 +279,20 @@ mod tests {
         headers.insert("authorization", HeaderValue::from_static("Bearer token"));
         headers.insert("host", HeaderValue::from_static("example.com"));
 
-        inject_chrome_headers(&mut headers, &profile, "none", true, RequestContext::Navigate, false, None);
+        inject_chrome_headers(
+            &mut headers,
+            &profile,
+            "none",
+            true,
+            RequestContext::Navigate,
+            false,
+            None,
+        );
 
         // Assert sensitive flags are strictly flipped to active
         assert!(headers.get("cookie").unwrap().is_sensitive());
         assert!(headers.get("authorization").unwrap().is_sensitive());
-        
+
         // Non-sensitive transport headers must not be marked as sensitive
         assert!(!headers.get("host").unwrap().is_sensitive());
     }

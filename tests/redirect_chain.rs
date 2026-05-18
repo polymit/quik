@@ -18,33 +18,37 @@ async fn test_redirect_referer_policy_stripping_tls() -> Result<(), Box<dyn std:
     // 2. Spawn the background TLS handler to process the redirect chain sequentially
     let server_handle = tokio::spawn(async move {
         // Hop 1: /source
-        server.handle_next_h2(move |req, mut respond| async move {
-            assert_eq!(req.uri().path(), "/source");
+        server
+            .handle_next_h2(move |req, mut respond| async move {
+                assert_eq!(req.uri().path(), "/source");
 
-            // Redirect to target on 'localhost' (cross-origin boundary to trigger stripping)
-            let redirect_location = format!("https://localhost:{}/target?secret=123", port);
-            let response = http::Response::builder()
-                .status(302)
-                .header("Location", redirect_location)
-                .body(())
-                .unwrap();
-            let _ = respond.send_response(response, true).unwrap();
-        }).await;
+                // Redirect to target on 'localhost' (cross-origin boundary to trigger stripping)
+                let redirect_location = format!("https://localhost:{}/target?secret=123", port);
+                let response = http::Response::builder()
+                    .status(302)
+                    .header("Location", redirect_location)
+                    .body(())
+                    .unwrap();
+                let _ = respond.send_response(response, true).unwrap();
+            })
+            .await;
 
         // Hop 2: /target (cross-origin referer header must be stripped to origin)
-        server.handle_next_h2(move |req, mut respond| async move {
-            assert_eq!(req.uri().path(), "/target");
+        server
+            .handle_next_h2(move |req, mut respond| async move {
+                assert_eq!(req.uri().path(), "/target");
 
-            // Verify that the referer is stripped to root origin
-            let referer = req.headers().get("referer").unwrap().to_str().unwrap();
-            let expected_referer = format!("https://127.0.0.1:{}/", port);
-            
-            assert_eq!(referer, expected_referer);
+                // Verify that the referer is stripped to root origin
+                let referer = req.headers().get("referer").unwrap().to_str().unwrap();
+                let expected_referer = format!("https://127.0.0.1:{}/", port);
 
-            // Respond with 200 OK to complete the chain
-            let response = http::Response::builder().status(200).body(()).unwrap();
-            let _ = respond.send_response(response, true).unwrap();
-        }).await;
+                assert_eq!(referer, expected_referer);
+
+                // Respond with 200 OK to complete the chain
+                let response = http::Response::builder().status(200).body(()).unwrap();
+                let _ = respond.send_response(response, true).unwrap();
+            })
+            .await;
     });
 
     // 3. Construct client bypass-verifying our self-signed TLS certs
