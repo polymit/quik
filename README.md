@@ -24,7 +24,7 @@ Modern anti-bot systems (like Cloudflare, Akamai, and DataDome) use passive fing
 ## Core Capabilities
 
 - **BoringSSL Integration**: Deep FFI bindings for low-level TLS control.
-- **Chrome 147 Identity**: Bit-perfect replication of stable Chrome browser profiles.
+- **Chrome 148 Identity**: Bit-perfect replication of stable Chrome browser profiles.
 - **Stealth HTTP/3 + QUIC**: Unified transport loop running dynamic pacers and Chrome settings.
 - **OS Auto-Detection**: Defaults to a profile matching the host system (macOS, Windows, or Linux) for out-of-the-box stealth.
 - **Connection Pooling**: Managed H2/H3 session reuse with concurrent lock-free stream readiness checks.
