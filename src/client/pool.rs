@@ -128,10 +128,15 @@ impl Default for Client {
 
 impl Client {
     /// Creates a new `Client` with a Chrome profile auto-matched to the host OS.
+    ///
+    /// By default, this constructor initializes a ClientBuilder and compiles the default
+    /// profile to the active host platform (e.g. `chrome_148` on Linux/macOS/Windows).
+    /// If builder initialization fails, it statefully falls back to the static `chrome_148`
+    /// auto-profile to guarantee uninterrupted transport-level compliance.
     pub fn new() -> Self {
         Self::builder().build().unwrap_or_else(|_| Client {
             pool: Arc::new(Mutex::new(HashMap::new())),
-            profile: crate::profile::chrome_134::profile_auto(),
+            profile: crate::profile::chrome_148::profile_auto(),
             proxy: None,
             cookie_store: Arc::new(RwLock::new(CookieStore::default())),
             hint_cache: Arc::new(RwLock::new(HashSet::new())),
@@ -647,10 +652,14 @@ impl ClientBuilder {
     }
 
     /// Finalizes the configuration and constructs a `Client`.
+    ///
+    /// If no explicit `ChromeProfile` was supplied, this method defaults to the
+    /// modern, high-fidelity `chrome_148` profile matched statefully to the host operating system
+    /// to preserve p0f network characteristics.
     pub fn build(self) -> Result<Client> {
         let mut profile = self
             .profile
-            .unwrap_or_else(crate::profile::chrome_147::profile_auto);
+            .unwrap_or_else(crate::profile::chrome_148::profile_auto);
 
         if self.danger_accept_invalid_certs {
             profile.tls.verify_peer = false;

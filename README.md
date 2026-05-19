@@ -48,7 +48,7 @@ use http_quik::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), http_quik::Error> {
-    // Auto-detects host OS and uses the matching Chrome 147 profile
+    // Auto-detects host OS and uses the matching Chrome 148 profile
     let client = Client::new();
 
     // Execute a stealth GET request
@@ -62,10 +62,10 @@ async fn main() -> Result<(), http_quik::Error> {
 Target a specific platform manually:
 
 ```rust
-use http_quik::{Client, Platform, profile::chrome_147};
+use http_quik::{Client, Platform, profile::chrome_148};
 
 let client = Client::builder()
-    .profile(chrome_147::profile(Platform::WindowsX64))
+    .profile(chrome_148::profile(Platform::WindowsX64))
     .build()?;
 ```
 

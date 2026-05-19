@@ -12,6 +12,8 @@ use boring::ssl::SslVersion;
 
 pub mod chrome_134;
 pub mod chrome_147;
+/// Profile definitions for Chrome 148, which serves as the default transport configuration.
+pub mod chrome_148;
 
 /// Alias for BoringSSL's internal version type.
 pub type TlsVersion = SslVersion;
@@ -20,7 +22,7 @@ pub type TlsVersion = SslVersion;
 ///
 /// The platform determines OS-specific protocol parameters (ALPS payload
 /// length, User-Agent string, Client Hint values) and is used by
-/// [`chrome_134::profile_auto`] to align the network persona with the
+/// [`chrome_148::profile_auto`] to align the network persona with the
 /// host kernel's TCP/IP characteristics.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Platform {

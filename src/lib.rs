@@ -25,7 +25,7 @@
 //!
 //! - **BoringSSL Integration** — Full ClientHello control including GREASE, ECH,
 //!   and extension permutation via raw FFI calls.
-//! - **Cross-Platform Profiles** — Pre-configured identities for Chrome 134 on
+//! - **Cross-Platform Profiles** — Pre-configured identities for Chrome 148 on
 //!   macOS, Windows, and Linux with OS-specific ALPS payloads and Client Hints.
 //! - **OS Auto-Detection** — [`Client::new()`] selects a profile matched to the
 //!   host kernel, eliminating p0f mismatch flags without configuration.
@@ -46,7 +46,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), http_quik::Error> {
-//!     // Auto-detects host OS and uses the matching Chrome 134 profile.
+//!     // Auto-detects host OS and uses the matching Chrome 148 profile.
 //! #   let client = Client::builder().danger_accept_invalid_certs(true).build()?;
 //! #   if false {
 //!     let client = Client::new();
@@ -104,6 +104,6 @@ pub(crate) mod tls;
 
 pub use crate::client::{connect, Client, ClientBuilder, RequestContext, Response};
 pub use crate::error::{Error, Result};
-pub use crate::profile::chrome_147::AKAMAI_FINGERPRINT;
-pub use crate::profile::chrome_147::JA3_HASH;
+pub use crate::profile::chrome_148::AKAMAI_FINGERPRINT;
+pub use crate::profile::chrome_148::JA3_HASH;
 pub use crate::profile::{ChromeProfile, Platform};
