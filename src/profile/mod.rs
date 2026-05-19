@@ -11,6 +11,7 @@
 use boring::ssl::SslVersion;
 
 pub mod chrome_134;
+pub mod chrome_147;
 
 /// Alias for BoringSSL's internal version type.
 pub type TlsVersion = SslVersion;

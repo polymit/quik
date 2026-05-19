@@ -104,6 +104,6 @@ pub(crate) mod tls;
 
 pub use crate::client::{connect, Client, ClientBuilder, RequestContext, Response};
 pub use crate::error::{Error, Result};
-pub use crate::profile::chrome_134::AKAMAI_FINGERPRINT;
-pub use crate::profile::chrome_134::JA3_HASH;
+pub use crate::profile::chrome_147::AKAMAI_FINGERPRINT;
+pub use crate::profile::chrome_147::JA3_HASH;
 pub use crate::profile::{ChromeProfile, Platform};

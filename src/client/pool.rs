@@ -15,17 +15,15 @@ use crate::client::response::Response;
 use crate::error::{Error, Result};
 use crate::profile::ChromeProfile;
 
-/// Tracks dynamic origin advertisements of HTTP/3 protocol support.
+/// Thread-safe registry for dynamically discovered HTTP/3 Alt-Svc advertisements.
 ///
-/// Under RFC 9114, servers advertise HTTP/3 availability via the `Alt-Svc` header
-/// (e.g. `alt-svc: h3=":443"; ma=86400`). This structure implements a thread-safe
-/// dynamic cache to record these mappings. Subsequent requests to identical origins
-/// intercept this cache and bypass standard TCP/TLS handshakes, attempting UDP/QUIC directly.
+/// Under RFC 9114, origins advertise QUIC support via the `Alt-Svc` HTTP header. 
+/// This cache records valid `h3` mappings to preemptively bypass TCP and TLS handshakes 
+/// on subsequent requests to the same origin, establishing QUIC connections directly.
 ///
-/// ### Thread-Safety Design:
-/// We wrap the mapping in an `Arc<RwLock<HashMap<...>>>`. This allows multiple parallel threads
-/// to query cache hits concurrently with zero-latency lock contention, while reserving exclusive write locks
-/// only when discovering new advertisements or degrading failed endpoints.
+/// The cache employs a reader-writer lock design to eliminate contention on the hot path.
+/// Reads (origin lookups) are wait-free under shared locks, while exclusive locks are 
+/// strictly reserved for initial discovery or deterministic eviction during network drops.
 #[derive(Clone)]
 pub struct AltSvcCache {
     entries: Arc<RwLock<HashMap<String, String>>>,
@@ -52,11 +50,12 @@ impl AltSvcCache {
         }
     }
 
-    /// Degrades/removes an origin entry on UDP dial failures.
+    /// Evicts an origin from the cache to trigger protocol fallback.
     ///
-    /// When a network path drops UDP packets or WAF rules block QUIC handshakes,
-    /// this function evicts the origin entry. The pool then routes subsequent requests
-    /// over H2/TCP, restoring standard connection fallback.
+    /// Used defensively when a QUIC handshake fails or a middlebox silently drops
+    /// UDP packets. Eviction ensures that subsequent requests to the affected origin 
+    /// are deterministically routed over HTTP/2 and TCP, maintaining connectivity 
+    /// on restrictive networks.
     pub fn remove(&self, origin: &str) {
         if let Ok(mut guard) = self.entries.write() {
             guard.remove(origin);
@@ -64,12 +63,13 @@ impl AltSvcCache {
     }
 }
 
-/// Polymorphic representation of an active pooled session.
+/// An abstract representation of an active, multiplexed connection session.
 ///
-/// Enforces complete transport decoupling at the connection interface. The request runner
-/// interacts solely with this polymorphic interface, routing standard `http::Request` blocks
-/// warning-free without needing to know if the frame is translated to TCP byte streams (HTTP/2)
-/// or UDP datagram packets (HTTP/3).
+/// This enum enforces strict transport decoupling. The request runner interacts 
+/// exclusively with the polymorphic `send` interface, completely abstracting whether 
+/// the underlying byte stream is multiplexed over HTTP/2 (TCP/TLS) or HTTP/3 (UDP/QUIC).
+/// It ensures connection lifecycles and multiplexing limits are handled seamlessly 
+/// behind a unified boundary.
 #[derive(Clone)]
 pub enum PooledConnection {
     /// Persistent HTTP/2 multiplexed TCP/TLS transport.
@@ -95,29 +95,28 @@ impl PooledConnection {
 type SharedConnection = Arc<tokio::sync::Mutex<Option<PooledConnection>>>;
 type ConnectionPool = Arc<Mutex<HashMap<String, SharedConnection>>>;
 
-/// A stateful, pooling HTTP client that enforces Chrome transport identity.
+/// A stateful HTTP client engine enforcing deterministic Chrome identity parity.
 ///
-/// The `Client` is the primary entry point for the `http-quik` library. It manages:
-/// 1. **Connection Pooling**: Reuses established H2 or H3 sessions to maintain persistent fingerprints.
-/// 2. **Cookie Persistence**: A synchronized cookie jar shared across all requests.
-/// 3. **Stealth Redirects**: Automatically follows redirects while mutating headers and methods
-///    to match Chromium's behavioral markers.
-/// 4. **OS Auto-Detection**: Defaults to a Chrome profile matched to the host OS.
-/// 5. **Dual-Stack H3 Routing**: Seamlessly resolves Alt-Svc advertisements and executes
-///    stealth HTTP/3 fetches, falling back automatically to H2 on UDP blockages.
+/// The `Client` is the primary interface for managing cross-origin requests. It maintains 
+/// global state across its clones, enabling shared connection pooling and cookie persistence. 
+/// Key operational guarantees include:
+/// 
+/// - **Transport Decoupling**: Transparently routes requests over H2 or H3 based on cache states.
+/// - **Connection Pooling**: Reuses established multiplexed streams isolated by proxy and origin.
+/// - **Automated State Tracking**: Synchronizes cookies, redirects, and client-hints seamlessly.
 #[derive(Clone)]
 pub struct Client {
-    /// A synchronized pool of active H2/H3 connections keyed by their origin and proxy.
+    /// A synchronized hash map of active connections, strictly keyed by protocol, proxy, and origin.
     pool: ConnectionPool,
-    /// The canonical identity profile used for all transport-layer operations.
+    /// The canonical identity profile governing TLS handshakes, H2 parameters, and HTTP metadata.
     profile: ChromeProfile,
-    /// An optional proxy used for all outbound connections.
+    /// An optional proxy route applied uniformly to all outbound connections from this client.
     proxy: Option<Proxy>,
-    /// A synchronized cookie jar shared across all requests.
+    /// A synchronized cookie jar enforcing RFC 6265 storage and cross-request persistence.
     pub cookie_store: Arc<RwLock<CookieStore>>,
-    /// A synchronized cache for Client Hints explicitly solicited by servers.
+    /// A cache tracking origins that explicitly solicited dynamic client hints (e.g. `Accept-CH`).
     pub hint_cache: Arc<RwLock<HashSet<String>>>,
-    /// Thread-safe registry tracking servers Solicit Alt-Svc targets.
+    /// Thread-safe registry mapping origins to discovered `Alt-Svc` UDP/QUIC endpoints.
     pub alt_svc_cache: AltSvcCache,
 }
 
@@ -157,21 +156,19 @@ impl Client {
             .await
     }
 
-    /// Core request execution engine with automated, stateful redirect handling.
+    /// Executes the primary request lifecycle, including automated redirect evaluation 
+    /// and dual-stack protocol fallback.
     ///
-    /// This method integrates our dual-stack transport fallback state machine:
-    ///
-    /// 1. **Alt-Svc Lookup**: Before building any connection, checks the `AltSvcCache` for the target origin.
-    /// 2. **Stateful Connection Keying**: Pools are split using target protocols (`#h2` vs `#h3`)
-    ///    to isolate transport streams.
-    /// 3. **Acquisition / Dials**:
-    ///    - Attempts to reuse an existing pooled H3 connection.
-    ///    - If none exists, executes a concurrent dial using the dynamic QUIC background driver.
-    ///    - If the dial fails immediately, the cache is degraded and we instantly switch to H2.
-    /// 4. **Resilient Transmission Fallback**: If connection establishment succeeds but request transmission
-    ///    subsequently fails (e.g., due to middlebox UDP drops during early frames), the loop intercepts
-    ///    the error, evicts the host from `AltSvcCache`, searches the pool for active TCP/H2 connections
-    ///    to preserve multiplexing, and falls back to TCP/TLS with zero user-visible latency.
+    /// ### Connection Acquisition and Fallback Topology
+    /// 1. **Routing Phase**: Evaluates `AltSvcCache` to select the target transport (H2 vs H3).
+    /// 2. **Lock Serialization**: Acquires an origin-specific async mutex to prevent connection 
+    ///    storming when multiple tasks simultaneously fault on a new origin.
+    /// 3. **Graceful Degradation**: If an active HTTP/3 dial fails or a request drops mid-flight 
+    ///    due to UDP restrictions, the engine instantly evicts the Alt-Svc mapping and 
+    ///    transparently fails over to HTTP/2 over TCP with zero user-visible latency.
+    /// 
+    /// Implements a strict limit of 10 redirects to prevent cyclical loops, applying 
+    /// RFC 7231 method rotation and Chrome-parity cross-site referer truncation on each hop.
     async fn execute_with_redirects(
         &self,
         initial_method: &str,
@@ -201,9 +198,7 @@ impl Client {
                 }
             });
 
-            // Build a unique pool key considering the proxy and target origin.
-            // This is required to isolate connection states when different proxies are used,
-            // avoiding leakage of target credentials or mismatching destination routes.
+            // Isolate connection pools by proxy to prevent credential leakage or route mismatches.
             let proxy_prefix = self
                 .proxy
                 .as_ref()
@@ -213,17 +208,13 @@ impl Client {
                 })
                 .unwrap_or_default();
 
-            // We differentiate H2 and H3 keys within the pool to avoid sharing TCP/UDP socket handles.
-            // Using a distinct suffix ("#h2" vs "#h3") ensures that protocol-specific multiplexers
-            // are kept isolated while keeping pooling fast and deterministic.
+            // Differentiate H2 and H3 keys to isolate TCP and UDP multiplexers.
             let origin_key = format!("{}:{}", authority, port);
             let mut has_alt_svc = self.alt_svc_cache.get(&origin_key).is_some();
             let transport_proto = if has_alt_svc { "h3" } else { "h2" };
             let pool_key = format!("{}{}:{}#{}", proxy_prefix, authority, port, transport_proto);
 
-            // Extract relevant cookies for the current target URL.
-            // A read lock is acquired on the cookie store to safely retrieve cookies matched
-            // to the destination domain, maintaining the synchronized cookie jar.
+            // Extract cookies matched to the target domain.
             let cookie_header = {
                 let store = self
                     .cookie_store
@@ -248,8 +239,7 @@ impl Client {
                 cache.contains(&parsed_url.origin().ascii_serialization())
             };
 
-            // Referer propagation
-            // Follows strict-origin-when-cross-origin policy, matching Chrome's behavior.
+            // Strict-origin-when-cross-origin referer propagation.
             let referer_to_send = previous_url_str.as_ref().map(|prev| {
                 if is_cross_site {
                     if let Ok(prev_url) = Url::parse(prev) {
@@ -259,10 +249,8 @@ impl Client {
                 prev.clone()
             });
 
-            // Connection acquisition logic: use an async Mutex per origin to avoid race conditions.
-            // Using a single-lock model ensures that parallel concurrent calls to the same endpoint
-            // serialize on connection establishment, avoiding connection storming signatures
-            // which easily trigger bot mitigation blocks.
+            // Use an async Mutex per pool key to serialize connection establishment.
+            // This prevents connection storms when making parallel requests to a new origin.
             let conn_mutex = {
                 let mut pool = self.pool.lock().map_err(|_| {
                     Error::Connect(std::io::Error::other("connection pool poisoned"))
@@ -281,9 +269,7 @@ impl Client {
                 if let Some(c) = conn_opt {
                     match c {
                         PooledConnection::Http2(mut conn) => {
-                            // Check if the underlying HTTP/2 multiplexed TCP stream is still alive.
-                            // If a stream drops or encounters a TLS socket error, we discard it
-                            // and allow the next loop tick to rebuild it.
+                            // Rebuild the TCP stream if the socket was closed or encountered a TLS error.
                             match conn.h2.ready().await {
                                 Ok(h2) => {
                                     conn.h2 = h2;
@@ -312,8 +298,7 @@ impl Client {
                             }
                             Err(e) => {
                                 if has_alt_svc {
-                                    // HTTP/3 UDP dialing encountered a block (e.g. port closed).
-                                    // We statefully degrade the cache entry and fall back immediately to H2.
+                                    // Fallback: UDP dial blocked. Evict from cache and retry over H2.
                                     tracing::warn!("HTTP/3 dial to {} failed ({:?}); falling back to HTTP/2/TCP.", origin_key, e);
                                     self.alt_svc_cache.remove(&origin_key);
                                     has_alt_svc = false;
@@ -384,9 +369,7 @@ impl Client {
                 referer_to_send.as_deref(),
             );
 
-            // Execute request transmission. If H3 fails, fallback instantly and transparently to H2.
-            // This isolates path UDP/QUIC blockage risks, protecting user interactions from
-            // failing when networks block UDP/443 traffic silently.
+            // Transmit request. If H3 fails mid-flight (e.g. silent UDP drop), evict and retry over H2.
             let mut response = match pooled_client.send(request, current_body.clone()).await {
                 Ok(resp) => resp,
                 Err(e) => {
@@ -394,8 +377,7 @@ impl Client {
                         tracing::warn!("HTTP/3 request transmission failed ({:?}); falling back to HTTP/2/TCP.", e);
                         self.alt_svc_cache.remove(&origin_key);
 
-                        // Check if an H2 connection already exists in the pool to preserve multiplexing.
-                        // Reusing an active TCP connection avoids building a second handshake, ensuring speed.
+                        // Check for an existing H2 connection to preserve multiplexing and avoid handshakes.
                         let h2_pool_key = format!("{}{}:{}#h2", proxy_prefix, authority, port);
                         let h2_conn_mutex = {
                             let mut pool = self.pool.lock().map_err(|_| {
@@ -485,7 +467,7 @@ impl Client {
                         .join(loc_str)
                         .map_err(|e| Error::InvalidUrl(e.to_string()))?;
 
-                    // Redirect Mutation: Rotate POST to GET on standard redirects, matching browser specifications.
+                    // Rotate method to GET on 301/302/303 per RFC 7231 §6.4.
                     if status == http::StatusCode::MOVED_PERMANENTLY
                         || status == http::StatusCode::FOUND
                         || status == http::StatusCode::SEE_OTHER
@@ -520,15 +502,14 @@ impl Client {
         )))
     }
 
-    /// Dials either an H2 or H3 connection based on origin flags.
+    /// Initializes a network socket and negotiates the underlying protocol stream.
     ///
-    /// ### Dial Mechanics:
-    /// - **HTTP/3 (dial_h3 = true)**:
-    ///   - Resolves target host address.
-    ///   - Binds wildcard UDP Socket aligned to IPv4/IPv6 address families.
-    ///   - Spawns background asynchronous loop worker task (`run_quic_driver`) to handle frame polls.
-    /// - **HTTP/2 (dial_h3 = false)**:
-    ///   - Opens standard TCP connection, negotiating TLS ALPN "h2".
+    /// ### Protocol Dispatch
+    /// - **HTTP/3 (`dial_h3 = true`)**: Resolves the target via DNS, binds an ephemeral 
+    ///   IPv4/IPv6 wildcard UDP socket, and delegates stream handling to a background 
+    ///   `QuicSession` worker. Emits Chrome's zero-length connection ID signature.
+    /// - **HTTP/2 (`dial_h3 = false`)**: Establishes a standard TCP connection, negotiating 
+    ///   TLS 1.3 with ALPN strictly constrained to `h2` and HTTP/1.1 fallbacks.
     async fn dial(
         &self,
         authority: &str,
@@ -625,7 +606,10 @@ impl Client {
     }
 }
 
-/// A builder for constructing a `Client` with specific identity and transport settings.
+/// A builder pattern for instantiating a custom [`Client`] with specific overrides.
+///
+/// Provides a declarative interface to override the default Chrome profile, configure 
+/// outbound proxy routes, or inject a pre-populated synchronized cookie store.
 #[derive(Default)]
 pub struct ClientBuilder {
     profile: Option<ChromeProfile>,
@@ -635,7 +619,10 @@ pub struct ClientBuilder {
 }
 
 impl ClientBuilder {
-    /// Disables certificate verification.
+    /// Bypasses TLS certificate validation.
+    ///
+    /// Disables peer verification in BoringSSL. This is strictly intended for debugging 
+    /// environments or corporate proxies and undermines transport layer security.
     pub fn danger_accept_invalid_certs(mut self, accept: bool) -> Self {
         self.danger_accept_invalid_certs = accept;
         self
@@ -663,7 +650,7 @@ impl ClientBuilder {
     pub fn build(self) -> Result<Client> {
         let mut profile = self
             .profile
-            .unwrap_or_else(crate::profile::chrome_134::profile_auto);
+            .unwrap_or_else(crate::profile::chrome_147::profile_auto);
 
         if self.danger_accept_invalid_certs {
             profile.tls.verify_peer = false;
