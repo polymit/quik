@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-05-19
+
+### Added
+- **Chrome 148 Transport Profile**: Integrated the full network footprint for Chrome 148. Implemented X25519MLKEM768 post-quantum curve (`id=4588`) and unified platform-invariant 24-byte ALPS settings (removing old platform-specific Windows/Linux settings).
+- **New Default Engine Persona**: Promoted the `chrome_148` profile to the default identity across all OS variants in `ClientBuilder::build()`, `Client::new()`, `profile_auto()`, and crate-wide convenience exports.
+- **Dynamic QPACK Optimization**: Aligned HTTP/3 parameters to Chrome 148 defaults, deallocating dynamic table capacities and setting blocked stream thresholds to 0.
+- **Stealth Test Suite**: Added dedicated `test_tls_client_hello_initiated_with_correct_header_chrome_148` integration test to intercept and assert bit-perfect TLS handshake footprints locally.
+
+### Changed
+- **Comprehensive Documentation Upgrade**: Extensively expanded doc-comments, module-level documentation, and design explanations in all modified profiles, client connection modules, and interceptor tests.
+- **Repository Documentation**: Refactored the core capabilities statement and usage examples in `README.md` to reference Chrome 148.
+
 ## [0.1.9] - 2026-05-19
 
 ### Added
