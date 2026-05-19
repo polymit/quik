@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-05-19
+
+### Added
+- **Chrome 147 Transport Profile**: Integrated the full network footprint for Chrome 147. Includes X25519MLKEM768 post-quantum curve prioritization (`id=4588`), legacy signature algorithm injection (`0x0201`), and updated `sec-ch-ua` GREASE logic mapping version `147` against a randomized brand version `8`.
+- **New Engine Default**: Promoted the `chrome_147` profile to the default identity across all OS variants within `ClientBuilder::build()` and `profile_auto()`.
+
+### Changed
+- **Connection Pool Documentation Architecture**: Extensively rewrote inline documentation for the `Client` connection pool (`src/client/pool.rs`). Formalized the abstraction boundaries of the polymorphic multiplexing engine, reader-writer lock contention models for the Alt-Svc cache, and the deterministic graceful degradation topology for UDP network partitions.
+- **Project Metadata Alignment**: Updated `Cargo.toml` and `README.md` to reflect the Chrome 147 identity shift and incremented the package version.
+
 ## [0.1.8] - 2026-05-18
 
 ### Added

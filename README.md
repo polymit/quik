@@ -24,7 +24,7 @@ Modern anti-bot systems (like Cloudflare, Akamai, and DataDome) use passive fing
 ## Core Capabilities
 
 - **BoringSSL Integration**: Deep FFI bindings for low-level TLS control.
-- **Chrome 134-136 Identity**: Bit-perfect replication of stable Chrome browser profiles.
+- **Chrome 147 Identity**: Bit-perfect replication of stable Chrome browser profiles.
 - **Stealth HTTP/3 + QUIC**: Unified transport loop running dynamic pacers and Chrome settings.
 - **OS Auto-Detection**: Defaults to a profile matching the host system (macOS, Windows, or Linux) for out-of-the-box stealth.
 - **Connection Pooling**: Managed H2/H3 session reuse with concurrent lock-free stream readiness checks.
@@ -38,7 +38,7 @@ Add `http-quik` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-http-quik = "0.1.8"
+http-quik = "0.1.9"
 ```
 
 Execute a stealth request with automatic OS detection:
@@ -48,7 +48,7 @@ use http_quik::Client;
 
 #[tokio::main]
 async fn main() -> Result<(), http_quik::Error> {
-    // Auto-detects host OS and uses the matching Chrome 134 profile
+    // Auto-detects host OS and uses the matching Chrome 147 profile
     let client = Client::new();
 
     // Execute a stealth GET request
@@ -62,10 +62,10 @@ async fn main() -> Result<(), http_quik::Error> {
 Target a specific platform manually:
 
 ```rust
-use http_quik::{Client, Platform, profile::chrome_134};
+use http_quik::{Client, Platform, profile::chrome_147};
 
 let client = Client::builder()
-    .profile(chrome_134::profile(Platform::WindowsX64))
+    .profile(chrome_147::profile(Platform::WindowsX64))
     .build()?;
 ```
 

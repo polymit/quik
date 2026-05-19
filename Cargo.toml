@@ -1,9 +1,9 @@
 [package]
 name        = "http-quik"
-version     = "0.1.8"
+version     = "0.1.9"
 edition     = "2021"
 license     = "Apache-2.0"
-description = "High-fidelity, stealth-optimized HTTP transport engine for Chrome 134 identity parity."
+description = "High-fidelity, stealth-optimized HTTP transport engine for Chrome 147 identity parity."
 repository  = "https://github.com/polymit/quik"
 homepage    = "https://github.com/polymit/quik"
 documentation = "https://docs.rs/http-quik"
